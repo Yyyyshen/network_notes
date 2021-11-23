@@ -7,6 +7,16 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "network_notes", "network_no
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "practise_million_conns", "practise_million_conns\practise_million_conns.vcxproj", "{AB049B46-ABF6-4003-BB9B-2C8A120E97EC}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "other", "other", "{58FD7E9A-5963-4D34-8243-C5D48B30EE9F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "cpp_server_dev", "cpp_server_dev", "{EC32C2ED-1C1C-44DF-97B1-767A269E9EE5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "linux_server_program", "linux_server_program", "{71440CC3-4F08-44C5-8B05-25D305D866D0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "linux_multi_thread_server", "linux_multi_thread_server", "{B9808A2B-F09F-4168-810C-4B6A6D14F97C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpp_server_dev", "cpp_server_dev\cpp_server_dev.vcxproj", "{5F72BA66-BA12-448B-89ED-3493E7A47ADE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -31,9 +41,21 @@ Global
 		{AB049B46-ABF6-4003-BB9B-2C8A120E97EC}.Release|x64.Build.0 = Release|x64
 		{AB049B46-ABF6-4003-BB9B-2C8A120E97EC}.Release|x86.ActiveCfg = Release|Win32
 		{AB049B46-ABF6-4003-BB9B-2C8A120E97EC}.Release|x86.Build.0 = Release|Win32
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Debug|x64.ActiveCfg = Debug|x64
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Debug|x64.Build.0 = Debug|x64
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Debug|x86.ActiveCfg = Debug|Win32
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Debug|x86.Build.0 = Debug|Win32
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Release|x64.ActiveCfg = Release|x64
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Release|x64.Build.0 = Release|x64
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Release|x86.ActiveCfg = Release|Win32
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AB049B46-ABF6-4003-BB9B-2C8A120E97EC} = {58FD7E9A-5963-4D34-8243-C5D48B30EE9F}
+		{5F72BA66-BA12-448B-89ED-3493E7A47ADE} = {EC32C2ED-1C1C-44DF-97B1-767A269E9EE5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {34FBDDF3-6FF0-4A3C-8D3E-E4447D253AEF}
