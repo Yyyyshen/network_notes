@@ -2,6 +2,8 @@
 //
 
 #include <iostream>
+#include <vector>
+#include <map>
 
 //
 //《C++服务器开发精髓》学习
@@ -270,12 +272,98 @@ struct SocketClient::Impl
 //
 
 //
+//类成员初始化和初值列
+// C++11以后，可以直接对成员在声明时进行初始化
 //
+
+//
+//注解标签
+// C++11 [[noreturn]]
+// C++14 [[deprecated]]
+// C++17 [[fallthrough]] switch-case中，某case分支没有break可能会有警告，可以使用此标签声明
+//		 [[nodiscard]] 修饰函数，告诉调用者必须关注返回值（标准库很多都有）
+//		 [[maybe_unused]] win32程序（记得在驱动中也是）函数的参数很多时候用不到，编译器会给警告，一般使用UNREFERENCED_PARAMETER宏调用；可用此标签代替
+//
+
+//
+//final、override、=default、=delete的适当使用
+//
+
+//
+//auto和decltype
+//
+
+//
+//range-based循环
+// for(auto iter : container)
+// 自定义对象要想支持该语法，至少实现begin、end两方法
+//
+
+//
+//C++17结构化绑定
+void
+test_struct_bind()
+{
+	int arr[] = { 1,2,3 };
+	auto [a, b, c] = arr;
+	std::cout << a << ":" << b << ":" << c << std::endl;
+
+	std::map<std::string, int> cities;
+	for (const auto& [cityname, citynum] : cities)
+	{
+		std::cout << cityname << ":" << citynum << std::endl;
+	}
+}
+// 
+//
+
+//
+//stl中emplacement代替insertion
+//
+
+//
+//智能指针
+class A : public std::enable_shared_from_this<A>
+{
+public:
+	using this_type = A;
+	//using sptr_type = std::shared_ptr<this_type>;
+	using sptr_type = std::weak_ptr<this_type>;
+public:
+	A()
+	{
+		std::cout << "ctor" << std::endl;
+	}
+	~A()
+	{
+		std::cout << "dtor" << std::endl;
+	}
+	void func()
+	{
+		m_self = shared_from_this();
+	}
+private:
+	sptr_type m_self;
+};
+void
+test_sptr()
+{
+	auto spa = std::make_shared<A>();
+	spa->func();								//两处拥有了自身，导致析构没有调用，发生资源泄露
+												//类内改为用week_ptr可以解除这种循环引用
+}
+// 
+//注意事项
+// 使用智能指针则不该用原始指针操作对象
+// 判断何种场合用哪种指针
+// 避免操作某个引用资源已经释放的智能指针
+// 作为类的成员变量出现时，应当使用前置声明，减少编译依赖，加快编译速度
 //
 
 int main()
 {
 	std::cout << "Hello World!\n";
 	//simple_win_tcp_server();
-	simple_win_tcp_server_raii();
+	//simple_win_tcp_server_raii();
+	test_sptr();
 }
