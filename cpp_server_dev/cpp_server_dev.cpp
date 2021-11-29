@@ -181,7 +181,7 @@ public:											//正常业务函数
 	bool_type do_bind(const char* ip, unsigned short port)
 	{
 		SOCKADDR_IN addrSrv;
-		inet_pton(AF_INET,ip,&addrSrv.sin_addr);
+		inet_pton(AF_INET, ip, &addrSrv.sin_addr);
 		addrSrv.sin_port = htons(port);
 		addrSrv.sin_family = AF_INET;
 		if (::bind(m_listen_sock, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)) == -1)
@@ -237,6 +237,36 @@ simple_win_tcp_server_raii()
 	return;
 }
 // 像智能指针、lockguard，都是这样的应用
+//
+
+//
+//pimpl
+// 当一个类的设计中，成员变量过多，暴露了太多细节
+// 可以将这些成员都封装成一个impl类
+// 在本类中用一个指向impl类的指针作为成员
+class SocketClient
+{
+private:
+	struct Impl;									//内部实现类，也可用struct
+public:
+	using this_type = SocketClient;
+	using impl_type = Impl;
+	using sptr_type = std::unique_ptr<impl_type>;
+public:
+	SocketClient()
+		:m_pImpl(std::make_unique<Impl>())
+	{}
+	~SocketClient() 								//使用智能指针，不需要显式删除
+	{}
+private:
+	sptr_type m_pImpl;
+};
+struct SocketClient::Impl
+{
+	SOCKET m_socket;
+	//...很多成员
+};
+// 
 //
 
 //
