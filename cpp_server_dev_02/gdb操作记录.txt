@@ -1,0 +1,1853 @@
+﻿gdb 调试 redis 流程
+
+
+
+
+[root@centos-linux cpp_server_dev_01]# wget http://download.redis.io/releases/redis-6.0.3.tar.gz
+--2021-11-30 14:43:03--  http://download.redis.io/releases/redis-6.0.3.tar.gz
+Resolving download.redis.io (download.redis.io)... 45.60.125.1
+Connecting to download.redis.io (download.redis.io)|45.60.125.1|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 2210882 (2.1M) [application/octet-stream]
+Saving to: ‘redis-6.0.3.tar.gz’
+
+100%[======================================>] 2,210,882   6.33MB/s   in 0.3s   
+
+2021-11-30 14:43:04 (6.33 MB/s) - ‘redis-6.0.3.tar.gz’ saved [2210882/2210882]
+
+[root@centos-linux cpp_server_dev_01]# tar zxvf redis-6.0.3.tar.gz 
+[root@centos-linux cpp_server_dev_01]# cd redis-6.0.3/
+[root@centos-linux redis-6.0.3]# make CFLAGS="-g -O0" -j4
+cd src && make all
+make[1]: Leaving directory `/root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src'
+
+
+
+
+崩溃进程生成core文件设定
+
+
+
+
+
+[root@centos-linux redis-6.0.3]# ulimit -a
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 7201
+max locked memory       (kbytes, -l) 64
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 55000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) 8192
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 7201
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+[root@centos-linux redis-6.0.3]# ulimit -c 102400
+[root@centos-linux redis-6.0.3]# ulimit -a
+core file size          (blocks, -c) 102400
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 7201
+max locked memory       (kbytes, -l) 64
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 55000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) 8192
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 7201
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+[root@centos-linux redis-6.0.3]# vim /proc/sys/kernel/core_pattern 
+[root@centos-linux redis-6.0.3]# cat /proc/sys/kernel/core_p
+cat: /proc/sys/kernel/core_p: No such file or directory
+[root@centos-linux redis-6.0.3]# cat /proc/sys/kernel/core_pattern 
+|/usr/libexec/abrt-hook-ccpp %s %c %p %u %g %t e %P %I %h
+[root@centos-linux redis-6.0.3]# echo "/root/Desktop/network/cpp_server_dev_01/coredump/core-%e-%t" > /proc/sys/kernel/core_pattern 
+[root@centos-linux redis-6.0.3]# cat /proc/sys/kernel/core_p
+core_pattern     core_pipe_limit  
+[root@centos-linux redis-6.0.3]# cat /proc/sys/kernel/core_pattern 
+/root/Desktop/network/cpp_server_dev_01/coredump/core-%e-%t
+[root@centos-linux redis-6.0.3]# cd src
+
+
+
+
+
+gdb基本常用命令
+
+
+
+
+
+
+[root@centos-linux src]# gdb redis-server 
+GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-120.el7
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-redhat-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+Reading symbols from /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server...done.
+(gdb) run
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+10596:C 30 Nov 2021 15:01:16.845 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+10596:C 30 Nov 2021 15:01:16.845 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=10596, just started
+10596:C 30 Nov 2021 15:01:16.845 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+                _._                                                  
+           _.-``__ ''-._                                             
+      _.-``    `.  `_.  ''-._           Redis 6.0.3 (00000000/0) 64 bit
+  .-`` .-```.  ```\/    _.,_ ''-._                                   
+ (    '      ,       .-`  | `,    )     Running in standalone mode
+ |`-._`-...-` __...-.``-._|'` _.-'|     Port: 6379
+ |    `-._   `._    /     _.-'    |     PID: 10596
+  `-._    `-._  `-./  _.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |           http://redis.io        
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |                                  
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+      `-._    `-.__.-'    _.-'                                       
+          `-._        _.-'                                           
+              `-.__.-'                                               
+
+10596:M 30 Nov 2021 15:01:16.849 # WARNING: The TCP backlog setting of 511 cannot be enforced because /proc/sys/net/core/somaxconn is set to the lower value of 128.
+10596:M 30 Nov 2021 15:01:16.849 # Server initialized
+10596:M 30 Nov 2021 15:01:16.849 # WARNING overcommit_memory is set to 0! Background save may fail under low memory condition. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+10596:M 30 Nov 2021 15:01:16.849 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.
+[New Thread 0x7ffff02bd700 (LWP 10603)]
+[New Thread 0x7fffefabc700 (LWP 10604)]
+[New Thread 0x7fffef2bb700 (LWP 10605)]
+[New Thread 0x7fffeeaba700 (LWP 10606)]
+10596:M 30 Nov 2021 15:01:16.853 * Ready to accept connections
+^C
+Program received signal SIGINT, Interrupt.
+0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-325.el7_9.x86_64
+(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+11203:C 30 Nov 2021 15:04:28.187 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+11203:C 30 Nov 2021 15:04:28.187 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=11203, just started
+11203:C 30 Nov 2021 15:04:28.187 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+                _._                                                  
+           _.-``__ ''-._                                             
+      _.-``    `.  `_.  ''-._           Redis 6.0.3 (00000000/0) 64 bit
+  .-`` .-```.  ```\/    _.,_ ''-._                                   
+ (    '      ,       .-`  | `,    )     Running in standalone mode
+ |`-._`-...-` __...-.``-._|'` _.-'|     Port: 6379
+ |    `-._   `._    /     _.-'    |     PID: 11203
+  `-._    `-._  `-./  _.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |           http://redis.io        
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |                                  
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+      `-._    `-.__.-'    _.-'                                       
+          `-._        _.-'                                           
+              `-.__.-'                                               
+
+11203:M 30 Nov 2021 15:04:28.191 # WARNING: The TCP backlog setting of 511 cannot be enforced because /proc/sys/net/core/somaxconn is set to the lower value of 128.
+11203:M 30 Nov 2021 15:04:28.191 # Server initialized
+11203:M 30 Nov 2021 15:04:28.191 # WARNING overcommit_memory is set to 0! Background save may fail under low memory condition. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+11203:M 30 Nov 2021 15:04:28.191 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.
+[New Thread 0x7ffff02bd700 (LWP 11204)]
+[New Thread 0x7fffefabc700 (LWP 11205)]
+[New Thread 0x7fffef2bb700 (LWP 11206)]
+[New Thread 0x7fffeeaba700 (LWP 11207)]
+11203:M 30 Nov 2021 15:04:28.194 * Ready to accept connections
+^C
+Program received signal SIGINT, Interrupt.
+0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+(gdb) continue
+Continuing.
+^C
+Program received signal SIGINT, Interrupt.
+0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+(gdb) c
+Continuing.
+break main
+^C
+Program received signal SIGINT, Interrupt.
+0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+(gdb) break main
+Breakpoint 1 at 0x43cdad: file server.c, line 5001.
+(gdb) run
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, main (argc=1, argv=0x7fffffffdd08) at server.c:5001
+5001	    spt_init(argc, argv);
+(gdb) break anet.c:455
+Breakpoint 2 at 0x430ca6: file anet.c, line 455.
+(gdb) run
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, main (argc=1, argv=0x7fffffffdd08) at server.c:5001
+5001	    spt_init(argc, argv);
+(gdb) c
+Continuing.
+12374:C 30 Nov 2021 15:10:28.901 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+12374:C 30 Nov 2021 15:10:28.901 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=12374, just started
+12374:C 30 Nov 2021 15:10:28.901 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+
+Breakpoint 2, anetListen (err=0x9b0148 <server+680> "", s=10, sa=0xbcc0c0, 
+    len=28, backlog=511) at anet.c:455
+455	    if (bind(s,sa,len) == -1) {
+(gdb) b 458
+Breakpoint 3 at 0x430cf0: file anet.c, line 458.
+(gdb) b 464
+Breakpoint 4 at 0x430d3c: file anet.c, line 464.
+(gdb) b 466
+Breakpoint 5 at 0x430d43: file anet.c, line 466.
+(gdb) c
+Continuing.
+
+Breakpoint 5, anetListen (err=0x9b0148 <server+680> "", s=10, sa=0xbcc0c0, 
+    len=28, backlog=511) at anet.c:466
+466	    return ANET_OK;
+(gdb) c
+Continuing.
+
+
+
+查看端口绑定情况
+[root@centos-linux src]# lsof -l -Pn | grep redis
+bash       2303              0  cwd       DIR              253,0     12288    2362346 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src
+gdb       10531              0  cwd       DIR              253,0     12288    2362346 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src
+gdb       10531              0  mem       REG              253,0  11175256    2363156 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server
+redis-ser 12374              0  cwd       DIR              253,0     12288    2362346 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src
+redis-ser 12374              0  rtd       DIR              253,0      4096          2 /
+redis-ser 12374              0  txt       REG              253,0  11175256    2363156 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server
+redis-ser 12374              0  mem       REG              253,0 106172832     289063 /usr/lib/locale/locale-archive
+redis-ser 12374              0  mem       REG              253,0   2156592     151496 /usr/lib64/libc-2.17.so
+redis-ser 12374              0  mem       REG              253,0    142144     151619 /usr/lib64/libpthread-2.17.so
+redis-ser 12374              0  mem       REG              253,0     43712     151629 /usr/lib64/librt-2.17.so
+redis-ser 12374              0  mem       REG              253,0     19248     151502 /usr/lib64/libdl-2.17.so
+redis-ser 12374              0  mem       REG              253,0   1136944     151504 /usr/lib64/libm-2.17.so
+redis-ser 12374              0  mem       REG              253,0    163312     151489 /usr/lib64/ld-2.17.so
+redis-ser 12374              0    0u      CHR              136,0       0t0          3 /dev/pts/0
+redis-ser 12374              0    1u      CHR              136,0       0t0          3 /dev/pts/0
+redis-ser 12374              0    2u      CHR              136,0       0t0          3 /dev/pts/0
+redis-ser 12374              0    3u     unix 0xffff8a2ebbed7b40       0t0    1054367 socket
+redis-ser 12374              0    4u     unix 0xffff8a2ebbed6a40       0t0    1054368 socket
+redis-ser 12374              0    5r     FIFO                0,9       0t0    1054369 pipe
+redis-ser 12374              0    6w     FIFO                0,9       0t0    1054369 pipe
+redis-ser 12374              0    7r     FIFO                0,9       0t0    1059334 pipe
+redis-ser 12374              0    8w     FIFO                0,9       0t0    1059334 pipe
+redis-ser 12374              0    9u  a_inode               0,10         0       6659 [eventpoll]
+redis-ser 12374              0   10u     IPv6            1059335       0t0        TCP *:6379 (LISTEN)
+redis-ser 12374              0   11u     IPv4            1061094       0t0        TCP *:6379 (LISTEN)
+bash      13015              0  cwd       DIR              253,0     12288    2362346 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src
+lsof      13155              0  cwd       DIR              253,0     12288    2362346 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src
+grep      13156              0  cwd       DIR              253,0     12288    2362346 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src
+lsof      13157              0  cwd       DIR              253,0     12288    2362346 /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src
+
+
+
+Breakpoint 2, anetListen (err=0x9b0148 <server+680> "", s=11, sa=0xbcc120, 
+    len=16, backlog=511) at anet.c:455
+455	    if (bind(s,sa,len) == -1) {
+(gdb) c
+Continuing.
+
+Breakpoint 5, anetListen (err=0x9b0148 <server+680> "", s=11, sa=0xbcc120, 
+    len=16, backlog=511) at anet.c:466
+466	    return ANET_OK;
+(gdb) backtrace
+#0  anetListen (err=0x9b0148 <server+680> "", s=11, sa=0xbcc120, len=16, 
+    backlog=511) at anet.c:466
+#1  0x0000000000430f16 in _anetTcpServer (err=0x9b0148 <server+680> "", 
+    port=6379, bindaddr=0x0, af=2, backlog=511) at anet.c:501
+#2  0x0000000000430fbb in anetTcpServer (err=0x9b0148 <server+680> "", 
+    port=6379, bindaddr=0x0, backlog=511) at anet.c:519
+#3  0x0000000000436ea8 in listenToPort (port=6379, fds=0x9b0014 <server+372>, 
+    count=0x9b0054 <server+436>) at server.c:2660
+#4  0x0000000000437513 in initServer () at server.c:2792
+#5  0x000000000043d418 in main (argc=1, argv=0x7fffffffdd08) at server.c:5128
+(gdb) frame 1
+#1  0x0000000000430f16 in _anetTcpServer (err=0x9b0148 <server+680> "", 
+    port=6379, bindaddr=0x0, af=2, backlog=511) at anet.c:501
+501	        if (anetListen(err,s,p->ai_addr,p->ai_addrlen,backlog) == ANET_ERR) s = ANET_ERR;
+(gdb) frame 5
+#5  0x000000000043d418 in main (argc=1, argv=0x7fffffffdd08) at server.c:5128
+5128	    initServer();
+(gdb) frame 0
+#0  anetListen (err=0x9b0148 <server+680> "", s=11, sa=0xbcc120, len=16, 
+    backlog=511) at anet.c:466
+466	    return ANET_OK;
+(gdb) info break
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x000000000043cdad in main at server.c:5001
+	breakpoint already hit 1 time
+2       breakpoint     keep y   0x0000000000430ca6 in anetListen at anet.c:455
+	breakpoint already hit 2 times
+3       breakpoint     keep y   0x0000000000430cf0 in anetListen at anet.c:458
+4       breakpoint     keep y   0x0000000000430d3c in anetListen at anet.c:464
+5       breakpoint     keep y   0x0000000000430d43 in anetListen at anet.c:466
+	breakpoint already hit 2 times
+(gdb) disable 1
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep n   0x000000000043cdad in main at server.c:5001
+	breakpoint already hit 1 time
+2       breakpoint     keep y   0x0000000000430ca6 in anetListen at anet.c:455
+	breakpoint already hit 2 times
+3       breakpoint     keep y   0x0000000000430cf0 in anetListen at anet.c:458
+4       breakpoint     keep y   0x0000000000430d3c in anetListen at anet.c:464
+5       breakpoint     keep y   0x0000000000430d43 in anetListen at anet.c:466
+	breakpoint already hit 2 times
+(gdb) delete 3
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep n   0x000000000043cdad in main at server.c:5001
+	breakpoint already hit 1 time
+2       breakpoint     keep y   0x0000000000430ca6 in anetListen at anet.c:455
+	breakpoint already hit 2 times
+4       breakpoint     keep y   0x0000000000430d3c in anetListen at anet.c:464
+5       breakpoint     keep y   0x0000000000430d43 in anetListen at anet.c:466
+	breakpoint already hit 2 times
+(gdb) list
+461	    if (listen(s, backlog) == -1) {
+462	        anetSetError(err, "listen: %s", strerror(errno));
+463	        close(s);
+464	        return ANET_ERR;
+465	    }
+466	    return ANET_OK;
+467	}
+468	
+469	static int anetV6Only(char *err, int s) {
+470	    int yes = 1;
+(gdb) frame 1
+#1  0x0000000000430f16 in _anetTcpServer (err=0x9b0148 <server+680> "", 
+    port=6379, bindaddr=0x0, af=2, backlog=511) at anet.c:501
+501	        if (anetListen(err,s,p->ai_addr,p->ai_addrlen,backlog) == ANET_ERR) s = ANET_ERR;
+(gdb) list
+496	        if ((s = socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
+497	            continue;
+498	
+499	        if (af == AF_INET6 && anetV6Only(err,s) == ANET_ERR) goto error;
+500	        if (anetSetReuseAddr(err,s) == ANET_ERR) goto error;
+501	        if (anetListen(err,s,p->ai_addr,p->ai_addrlen,backlog) == ANET_ERR) s = ANET_ERR;
+502	        goto end;
+503	    }
+504	    if (p == NULL) {
+505	        anetSetError(err, "unable to bind socket, errno: %d", errno);
+(gdb) list
+506	        goto error;
+507	    }
+508	
+509	error:
+510	    if (s != -1) close(s);
+511	    s = ANET_ERR;
+512	end:
+513	    freeaddrinfo(servinfo);
+514	    return s;
+515	}
+(gdb) list-
+Undefined command: "list-".  Try "help".
+(gdb) list -
+496	        if ((s = socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
+497	            continue;
+498	
+499	        if (af == AF_INET6 && anetV6Only(err,s) == ANET_ERR) goto error;
+500	        if (anetSetReuseAddr(err,s) == ANET_ERR) goto error;
+501	        if (anetListen(err,s,p->ai_addr,p->ai_addrlen,backlog) == ANET_ERR) s = ANET_ERR;
+502	        goto end;
+503	    }
+504	    if (p == NULL) {
+505	        anetSetError(err, "unable to bind socket, errno: %d", errno);
+(gdb) list +
+506	        goto error;
+507	    }
+508	
+509	error:
+510	    if (s != -1) close(s);
+511	    s = ANET_ERR;
+512	end:
+513	    freeaddrinfo(servinfo);
+514	    return s;
+515	}
+(gdb) frame 4
+#4  0x0000000000437513 in initServer () at server.c:2792
+2792	        listenToPort(server.port,server.ipfd,&server.ipfd_count) == C_ERR)
+(gdb) list
+2787	    }
+2788	    server.db = zmalloc(sizeof(redisDb)*server.dbnum);
+2789	
+2790	    /* Open the TCP listening socket for the user commands. */
+2791	    if (server.port != 0 &&
+2792	        listenToPort(server.port,server.ipfd,&server.ipfd_count) == C_ERR)
+2793	        exit(1);
+2794	    if (server.tls_port != 0 &&
+2795	        listenToPort(server.tls_port,server.tlsfd,&server.tlsfd_count) == C_ERR)
+2796	        exit(1);
+(gdb) print server.port
+$1 = 6379
+(gdb) print server.ipfd
+$2 = {10, 0 <repeats 15 times>}
+(gdb) p &server.port
+$3 = (int *) 0x9aff74 <server+212>
+(gdb) p server.port=6400
+$4 = 6400
+(gdb) p &server.port
+$5 = (int *) 0x9aff74 <server+212>
+(gdb) p server.port
+$6 = 6400
+(gdb) p /i server.port
+Format letter "i" is meaningless in "print" command.
+(gdb) ptype server.port
+type = int
+(gdb) ptype server
+type = struct redisServer {
+    pid_t pid;
+    char *configfile;
+    char *executable;
+    char **exec_argv;
+    int dynamic_hz;
+    int config_hz;
+    int hz;
+    redisDb *db;
+    dict *commands;
+    dict *orig_commands;
+    aeEventLoop *el;
+    unsigned int lruclock;
+    int shutdown_asap;
+    int activerehashing;
+    int active_defrag_running;
+    char *pidfile;
+    int arch_bits;
+    int cronloops;
+    char runid[41];
+    int sentinel_mode;
+    size_t initial_memory_usage;
+    int always_show_logo;
+---Type <return> to continue, or q <return> to quit---
+    dict *moduleapi;
+    dict *sharedapi;
+    list *loadmodule_queue;
+    int module_blocked_pipe[2];
+    pid_t module_child_pid;
+    int port;
+    int tls_port;
+    int tcp_backlog;
+    char *bindaddr[16];
+    int bindaddr_count;
+    char *unixsocket;
+    mode_t unixsocketperm;
+    int ipfd[16];
+    int ipfd_count;
+    int tlsfd[16];
+    int tlsfd_count;
+    int sofd;
+    int cfd[16];
+    int cfd_count;
+    list *clients;
+    list *clients_to_close;
+    list *clients_pending_write;
+    list *clients_pending_read;
+---Type <return> to continue, or q <return> to quit---q
+Quit
+(gdb) delete
+Delete all breakpoints? (y or n) y
+(gdb) run
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+
+
+
+
+gdb调试多线程程序
+
+
+
+
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+18203:C 30 Nov 2021 15:40:26.538 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+18203:C 30 Nov 2021 15:40:26.538 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=18203, just started
+18203:C 30 Nov 2021 15:40:26.538 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+                _._                                                  
+           _.-``__ ''-._                                             
+      _.-``    `.  `_.  ''-._           Redis 6.0.3 (00000000/0) 64 bit
+  .-`` .-```.  ```\/    _.,_ ''-._                                   
+ (    '      ,       .-`  | `,    )     Running in standalone mode
+ |`-._`-...-` __...-.``-._|'` _.-'|     Port: 6379
+ |    `-._   `._    /     _.-'    |     PID: 18203
+  `-._    `-._  `-./  _.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |           http://redis.io        
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |                                  
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+      `-._    `-.__.-'    _.-'                                       
+          `-._        _.-'                                           
+              `-.__.-'                                               
+
+18203:M 30 Nov 2021 15:40:26.543 # WARNING: The TCP backlog setting of 511 cannot be enforced because /proc/sys/net/core/somaxconn is set to the lower value of 128.
+18203:M 30 Nov 2021 15:40:26.543 # Server initialized
+18203:M 30 Nov 2021 15:40:26.543 # WARNING overcommit_memory is set to 0! Background save may fail under low memory condition. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+18203:M 30 Nov 2021 15:40:26.543 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.
+[New Thread 0x7ffff02bd700 (LWP 18204)]
+[New Thread 0x7fffefabc700 (LWP 18205)]
+[New Thread 0x7fffef2bb700 (LWP 18206)]
+[New Thread 0x7fffeeaba700 (LWP 18207)]
+18203:M 30 Nov 2021 15:40:26.546 * Ready to accept connections
+^C
+Program received signal SIGINT, Interrupt.
+0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+(gdb) info threads
+  Id   Target Id         Frame 
+  5    Thread 0x7fffeeaba700 (LWP 18207) "jemalloc_bg_thd" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  4    Thread 0x7fffef2bb700 (LWP 18206) "bio_lazy_free" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  3    Thread 0x7fffefabc700 (LWP 18205) "bio_aof_fsync" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  2    Thread 0x7ffff02bd700 (LWP 18204) "bio_close_file" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+* 1    Thread 0x7ffff7fdef80 (LWP 18203) "redis-server" 0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+(gdb) backtrace
+#0  0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+#1  0x000000000042ec62 in aeApiPoll (eventLoop=0x7ffff6c0b480, 
+    tvp=0x7fffffffdb40) at ae_epoll.c:112
+#2  0x000000000042f9b3 in aeProcessEvents (eventLoop=0x7ffff6c0b480, flags=27)
+    at ae.c:447
+#3  0x000000000042fc8e in aeMain (eventLoop=0x7ffff6c0b480) at ae.c:539
+#4  0x000000000043d5a9 in main (argc=1, argv=0x7fffffffdd08) at server.c:5175
+(gdb) thread 2
+[Switching to thread 2 (Thread 0x7ffff02bd700 (LWP 18204))]
+#0  0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+(gdb) bt
+#0  0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+#1  0x000000000049fa00 in bioProcessBackgroundJobs (arg=0x0) at bio.c:190
+#2  0x00007ffff74b8ea5 in start_thread () from /lib64/libpthread.so.0
+#3  0x00007ffff71e1b0d in clone () from /lib64/libc.so.6
+(gdb) info threads
+  Id   Target Id         Frame 
+  5    Thread 0x7fffeeaba700 (LWP 18207) "jemalloc_bg_thd" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  4    Thread 0x7fffef2bb700 (LWP 18206) "bio_lazy_free" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  3    Thread 0x7fffefabc700 (LWP 18205) "bio_aof_fsync" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+* 2    Thread 0x7ffff02bd700 (LWP 18204) "bio_close_file" 0x00007ffff74bca35 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  1    Thread 0x7ffff7fdef80 (LWP 18203) "redis-server" 0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+(gdb) thread 1
+[Switching to thread 1 (Thread 0x7ffff7fdef80 (LWP 18203))]
+#0  0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+(gdb) bt
+#0  0x00007ffff71e20e3 in epoll_wait () from /lib64/libc.so.6
+#1  0x000000000042ec62 in aeApiPoll (eventLoop=0x7ffff6c0b480, 
+    tvp=0x7fffffffdb40) at ae_epoll.c:112
+#2  0x000000000042f9b3 in aeProcessEvents (eventLoop=0x7ffff6c0b480, flags=27)
+    at ae.c:447
+#3  0x000000000042fc8e in aeMain (eventLoop=0x7ffff6c0b480) at ae.c:539
+#4  0x000000000043d5a9 in main (argc=1, argv=0x7fffffffdd08) at server.c:5175
+(gdb) frame 2
+#2  0x000000000042f9b3 in aeProcessEvents (eventLoop=0x7ffff6c0b480, flags=27)
+    at ae.c:447
+447	        numevents = aeApiPoll(eventLoop, tvp);
+(gdb) info args
+eventLoop = 0x7ffff6c0b480
+flags = 27
+(gdb) p *eventLoop
+$7 = {maxfd = 11, setsize = 10128, timeEventNextId = 1, lastTime = 1638258030, 
+  events = 0x7ffff6c78000, fired = 0x7ffff6cc9f00, 
+  timeEventHead = 0x7ffff6c23230, stop = 0, apidata = 0x7ffff6c77be0, 
+  beforesleep = 0x435a9b <beforeSleep>, aftersleep = 0x435c5d <afterSleep>, 
+  flags = 0}
+(gdb) p eventLoop->events
+$8 = (aeFileEvent *) 0x7ffff6c78000
+(gdb) p *eventLoop->events
+$9 = {mask = 0, rfileProc = 0x0, wfileProc = 0x0, clientData = 0x0}
+(gdb) p eventLoop->events->clientData
+$10 = (void *) 0x0
+(gdb) break anet.c:455
+Breakpoint 6 at 0x430ca6: file anet.c, line 455.
+(gdb) run
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+19707:C 30 Nov 2021 15:48:24.028 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+19707:C 30 Nov 2021 15:48:24.028 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=19707, just started
+19707:C 30 Nov 2021 15:48:24.028 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+
+Breakpoint 6, anetListen (err=0x9b0148 <server+680> "", s=10, sa=0xbcc0c0, 
+    len=28, backlog=511) at anet.c:455
+455	    if (bind(s,sa,len) == -1) {
+(gdb) list
+450	    }
+451	    return totlen;
+452	}
+453	
+454	static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len, int backlog) {
+455	    if (bind(s,sa,len) == -1) {
+456	        anetSetError(err, "bind: %s", strerror(errno));
+457	        close(s);
+458	        return ANET_ERR;
+459	    }
+(gdb) list
+460	
+461	    if (listen(s, backlog) == -1) {
+462	        anetSetError(err, "listen: %s", strerror(errno));
+463	        close(s);
+464	        return ANET_ERR;
+465	    }
+466	    return ANET_OK;
+467	}
+468	
+469	static int anetV6Only(char *err, int s) {
+(gdb) p s
+$11 = 10
+(gdb) p sa
+$12 = (struct sockaddr *) 0xbcc0c0
+(gdb) ps *sa
+Undefined command: "ps".  Try "help".
+(gdb) p *sa
+$13 = {sa_family = 10, sa_data = "\030\353", '\000' <repeats 11 times>}
+(gdb) next
+461	    if (listen(s, backlog) == -1) {
+(gdb) 
+466	    return ANET_OK;
+(gdb) p s
+$14 = 10
+(gdb) p backlog
+$15 = 511
+(gdb) run
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+20176:C 30 Nov 2021 15:50:51.878 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+20176:C 30 Nov 2021 15:50:51.878 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=20176, just started
+20176:C 30 Nov 2021 15:50:51.878 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+
+Breakpoint 6, anetListen (err=0x9b0148 <server+680> "", s=10, sa=0xbcc0c0, 
+    len=28, backlog=511) at anet.c:455
+455	    if (bind(s,sa,len) == -1) {
+(gdb) step
+461	    if (listen(s, backlog) == -1) {
+(gdb) s
+466	    return ANET_OK;
+(gdb) break main
+Breakpoint 7 at 0x43cdad: file server.c, line 5001.
+(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 7, main (argc=1, argv=0x7fffffffdd08) at server.c:5001
+5001	    spt_init(argc, argv);
+(gdb) step
+spt_init (argc=1, argv=0x7fffffffdd08) at setproctitle.c:153
+153	        char **envp = environ;
+(gdb) list
+148		return 0;
+149	} /* spt_copyargs() */
+150	
+151	
+152	void spt_init(int argc, char *argv[]) {
+153	        char **envp = environ;
+154		char *base, *end, *nul, *tmp;
+155		int i, error;
+156	
+157		if (!(base = argv[0]))
+(gdb) step
+157		if (!(base = argv[0]))
+(gdb) step
+160		nul = &base[strlen(base)];
+(gdb) l
+155		int i, error;
+156	
+157		if (!(base = argv[0]))
+158			return;
+159	
+160		nul = &base[strlen(base)];
+161		end = nul + 1;
+162	
+163		for (i = 0; i < argc || (i >= argc && argv[i]); i++) {
+164			if (!argv[i] || argv[i] < end)
+(gdb) s
+161		end = nul + 1;
+(gdb) list
+156	
+157		if (!(base = argv[0]))
+158			return;
+159	
+160		nul = &base[strlen(base)];
+161		end = nul + 1;
+162	
+163		for (i = 0; i < argc || (i >= argc && argv[i]); i++) {
+164			if (!argv[i] || argv[i] < end)
+165				continue;
+(gdb) s
+163		for (i = 0; i < argc || (i >= argc && argv[i]); i++) {
+(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 7, main (argc=1, argv=0x7fffffffdd08) at server.c:5001
+5001	    spt_init(argc, argv);
+(gdb) s
+spt_init (argc=1, argv=0x7fffffffdd08) at setproctitle.c:153
+153	        char **envp = environ;
+(gdb) l
+148		return 0;
+149	} /* spt_copyargs() */
+150	
+151	
+152	void spt_init(int argc, char *argv[]) {
+153	        char **envp = environ;
+154		char *base, *end, *nul, *tmp;
+155		int i, error;
+156	
+157		if (!(base = argv[0]))
+(gdb) return 0
+Make spt_init return now? (y or n) y
+#0  main (argc=1, argv=0x7fffffffdd08)
+    at server.c:5003
+5003	    setlocale(LC_COLLATE,"");
+(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 7, main (argc=1, argv=0x7fffffffdd08) at server.c:5001
+5001	    spt_init(argc, argv);
+(gdb) step
+spt_init (argc=1, argv=0x7fffffffdd08) at setproctitle.c:153
+153	        char **envp = environ;
+(gdb) l
+148		return 0;
+149	} /* spt_copyargs() */
+150	
+151	
+152	void spt_init(int argc, char *argv[]) {
+153	        char **envp = environ;
+154		char *base, *end, *nul, *tmp;
+155		int i, error;
+156	
+157		if (!(base = argv[0]))
+(gdb) s
+157		if (!(base = argv[0]))
+(gdb) s
+160		nul = &base[strlen(base)];
+(gdb) s
+161		end = nul + 1;
+(gdb) l
+156	
+157		if (!(base = argv[0]))
+158			return;
+159	
+160		nul = &base[strlen(base)];
+161		end = nul + 1;
+162	
+163		for (i = 0; i < argc || (i >= argc && argv[i]); i++) {
+164			if (!argv[i] || argv[i] < end)
+165				continue;
+(gdb) l
+166	
+167			end = argv[i] + strlen(argv[i]) + 1;
+168		}
+169	
+170		for (i = 0; envp[i]; i++) {
+171			if (envp[i] < end)
+172				continue;
+173	
+174			end = envp[i] + strlen(envp[i]) + 1;
+175		}
+(gdb) until 170
+spt_init (argc=1, argv=0x7fffffffdd08) at setproctitle.c:170
+170		for (i = 0; envp[i]; i++) {
+(gdb) break initServer
+Breakpoint 8 at 0x4372f8: file server.c, line 2742.
+(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 7, main (argc=1, argv=0x7fffffffdd08) at server.c:5001
+5001	    spt_init(argc, argv);
+(gdb) c
+Continuing.
+21989:C 30 Nov 2021 16:00:13.813 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+21989:C 30 Nov 2021 16:00:13.813 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=21989, just started
+21989:C 30 Nov 2021 16:00:13.813 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+
+Breakpoint 8, initServer () at server.c:2742
+2742	    signal(SIGHUP, SIG_IGN);
+(gdb) l
+2737	}
+2738	
+2739	void initServer(void) {
+2740	    int j;
+2741	
+2742	    signal(SIGHUP, SIG_IGN);
+2743	    signal(SIGPIPE, SIG_IGN);
+2744	    setupSignalHandlers();
+2745	
+2746	    if (server.syslog_enabled) {
+(gdb) jump 2743
+Continuing at 0x437307.
+
+Breakpoint 6, anetListen (err=0x9b0148 <server+680> "", s=10, sa=0xbcc0c0, 
+    len=28, backlog=511) at anet.c:455
+455	    if (bind(s,sa,len) == -1) {
+(gdb) bt
+#0  anetListen (err=0x9b0148 <server+680> "", s=10, sa=0xbcc0c0, len=28, 
+    backlog=511) at anet.c:455
+#1  0x0000000000430f16 in _anetTcpServer (err=0x9b0148 <server+680> "", 
+    port=6379, bindaddr=0x0, af=10, backlog=511) at anet.c:501
+#2  0x0000000000430ff1 in anetTcp6Server (err=0x9b0148 <server+680> "", 
+    port=6379, bindaddr=0x0, backlog=511) at anet.c:524
+#3  0x0000000000436de5 in listenToPort (port=6379, fds=0x9b0014 <server+372>, 
+    count=0x9b0054 <server+436>) at server.c:2648
+#4  0x0000000000437513 in initServer () at server.c:2792
+#5  0x000000000043d418 in main (argc=1, argv=0x7fffffffdd08) at server.c:5128
+(gdb) p s
+$16 = 10
+(gdb) p len
+$17 = 28
+(gdb) 
+
+
+
+
+
+
+
+gdb调试汇编
+
+
+
+
+
+
+
+(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 7, main (argc=1, argv=0x7fffffffdd08) at server.c:5001
+5001	    spt_init(argc, argv);
+(gdb) c
+Continuing.
+22802:C 30 Nov 2021 16:04:32.920 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+22802:C 30 Nov 2021 16:04:32.920 # Redis version=6.0.3, bits=64, commit=00000000, modified=0, pid=22802, just started
+22802:C 30 Nov 2021 16:04:32.920 # Warning: no config file specified, using the default config. In order to specify a config file use /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server /path/to/redis.conf
+
+Breakpoint 8, initServer () at server.c:2742
+2742	    signal(SIGHUP, SIG_IGN);
+(gdb) disassemble
+Dump of assembler code for function initServer:
+   0x00000000004372ef <+0>:	push   %rbp
+   0x00000000004372f0 <+1>:	mov    %rsp,%rbp
+   0x00000000004372f3 <+4>:	push   %rbx
+   0x00000000004372f4 <+5>:	sub    $0x18,%rsp
+=> 0x00000000004372f8 <+9>:	mov    $0x1,%esi
+   0x00000000004372fd <+14>:	mov    $0x1,%edi
+   0x0000000000437302 <+19>:	callq  0x42a780 <signal@plt>
+   0x0000000000437307 <+24>:	mov    $0x1,%esi
+   0x000000000043730c <+29>:	mov    $0xd,%edi
+   0x0000000000437311 <+34>:	callq  0x42a780 <signal@plt>
+   0x0000000000437316 <+39>:	callq  0x43c567 <setupSignalHandlers>
+   0x000000000043731b <+44>:	mov    0x579547(%rip),%eax        # 0x9b0868 <server+2504>
+   0x0000000000437321 <+50>:	test   %eax,%eax
+   0x0000000000437323 <+52>:	je     0x43733f <initServer+80>
+   0x0000000000437325 <+54>:	mov    0x57954d(%rip),%edx        # 0x9b0878 <server+2520>
+   0x000000000043732b <+60>:	mov    0x57953e(%rip),%rax        # 0x9b0870 <server+2512>
+   0x0000000000437332 <+67>:	mov    $0x19,%esi
+   0x0000000000437337 <+72>:	mov    %rax,%rdi
+   0x000000000043733a <+75>:	callq  0x42ad40 <openlog@plt>
+---Type <return> to continue, or q <return> to quit---
+   0x000000000043733f <+80>:	mov    0x579373(%rip),%eax        # 0x9b06b8 <server+2072>
+   0x0000000000437345 <+86>:	test   %eax,%eax
+   0x0000000000437347 <+88>:	setne  %al
+   0x000000000043734a <+91>:	movzbl %al,%eax
+   0x000000000043734d <+94>:	mov    %eax,0x579369(%rip)        # 0x9b06bc <server+2076>
+   0x0000000000437353 <+100>:	mov    0x578b6b(%rip),%eax        # 0x9afec4 <server+36>
+   0x0000000000437359 <+106>:	mov    %eax,0x578b69(%rip)        # 0x9afec8 <server+40>
+   0x000000000043735f <+112>:	callq  0x42a2e0 <getpid@plt>
+   0x0000000000437364 <+117>:	mov    %eax,0x578b36(%rip)        # 0x9afea0 <server>
+   0x000000000043736a <+123>:	movq   $0x0,0x578da3(%rip)        # 0x9b0118 <server+632>
+   0x0000000000437375 <+134>:	movq   $0x0,0x578da8(%rip)        # 0x9b0128 <server+648>
+   0x0000000000437380 <+145>:	callq  0x42aff2 <listCreate>
+   0x0000000000437385 <+150>:	mov    %rax,0x578d5c(%rip)        # 0x9b00e8 <server+584>
+   0x000000000043738c <+157>:	callq  0x4d0e1e <raxNew>
+   0x0000000000437391 <+162>:	mov    %rax,0x578d98(%rip)        # 0x9b0130 <se---Type <return> to continue, or q <return> to quit---
+rver+656>
+   0x0000000000437398 <+169>:	callq  0x42aff2 <listCreate>
+   0x000000000043739d <+174>:	mov    %rax,0x578d4c(%rip)        # 0x9b00f0 <server+592>
+   0x00000000004373a4 <+181>:	callq  0x42aff2 <listCreate>
+   0x00000000004373a9 <+186>:	mov    %rax,0x578d58(%rip)        # 0x9b0108 <server+616>
+   0x00000000004373b0 <+193>:	callq  0x42aff2 <listCreate>
+   0x00000000004373b5 <+198>:	mov    %rax,0x578d54(%rip)        # 0x9b0110 <server+624>
+   0x00000000004373bc <+205>:	callq  0x42aff2 <listCreate>
+   0x00000000004373c1 <+210>:	mov    %rax,0x578d30(%rip)        # 0x9b00f8 <server+600>
+   0x00000000004373c8 <+217>:	callq  0x42aff2 <listCreate>
+   0x00000000004373cd <+222>:	mov    %rax,0x578d2c(%rip)        # 0x9b0100 <server+608>
+   0x00000000004373d4 <+229>:	callq  0x4d0e1e <raxNew>
+   0x00000000004373d9 <+234>:	mov    %rax,0x578d40(%rip)        # 0x9b0120 <server+640>
+   0x00000000004373e0 <+241>:	movl   $0xffffffff,0x5794fe(%rip)        # 0x9b08e8 <server+2632>
+   0x00000000004373ea <+251>:	callq  0x42aff2 <listCreate>
+   0x00000000004373ef <+256>:	mov    %rax,0x579692(%rip)        # 0x9b0a88 <se---Type <return> to continue, or q <return> to quit---
+rver+3048>
+   0x00000000004373f6 <+263>:	callq  0x42aff2 <listCreate>
+   0x00000000004373fb <+268>:	mov    %rax,0x57968e(%rip)        # 0x9b0a90 <server+3056>
+   0x0000000000437402 <+275>:	callq  0x42aff2 <listCreate>
+   0x0000000000437407 <+280>:	mov    %rax,0x57962a(%rip)        # 0x9b0a38 <server+2968>
+   0x000000000043740e <+287>:	movl   $0x0,0x579628(%rip)        # 0x9b0a40 <server+2976>
+   0x0000000000437418 <+297>:	movl   $0x0,0x578d16(%rip)        # 0x9b0138 <server+664>
+   0x0000000000437422 <+307>:	movq   $0x0,0x578e3b(%rip)        # 0x9b0268 <server+968>
+   0x000000000043742d <+318>:	callq  0x44088d <zmalloc_get_memory_size>
+   0x0000000000437432 <+323>:	mov    %rax,0x57980f(%rip)        # 0x9b0c48 <server+3496>
+   0x0000000000437439 <+330>:	mov    0x578b39(%rip),%eax        # 0x9aff78 <server+216>
+   0x000000000043743f <+336>:	test   %eax,%eax
+   0x0000000000437441 <+338>:	je     0x437470 <initServer+385>
+   0x0000000000437443 <+340>:	mov    $0x9b0c60,%edi
+   0x0000000000437448 <+345>:	callq  0x4e69bb <tlsConfigure>
+   0x000000000043744d <+350>:	cmp    $0xffffffff,%eax
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437450 <+353>:	jne    0x437470 <initServer+385>
+   0x0000000000437452 <+355>:	mov    $0x9252b8,%esi
+   0x0000000000437457 <+360>:	mov    $0x3,%edi
+   0x000000000043745c <+365>:	mov    $0x0,%eax
+   0x0000000000437461 <+370>:	callq  0x433e9b <serverLog>
+   0x0000000000437466 <+375>:	mov    $0x1,%edi
+   0x000000000043746b <+380>:	callq  0x42ada0 <exit@plt>
+   0x0000000000437470 <+385>:	callq  0x435c85 <createSharedObjects>
+   0x0000000000437475 <+390>:	callq  0x436ae4 <adjustOpenFilesLimit>
+   0x000000000043747a <+395>:	mov    0x5795c4(%rip),%eax        # 0x9b0a44 <server+2980>
+   0x0000000000437480 <+401>:	sub    $0xffffff80,%eax
+   0x0000000000437483 <+404>:	mov    %eax,%edi
+   0x0000000000437485 <+406>:	callq  0x42ed45 <aeCreateEventLoop>
+   0x000000000043748a <+411>:	mov    %rax,0x578a57(%rip)        # 0x9afee8 <server+72>
+   0x0000000000437491 <+418>:	mov    0x578a50(%rip),%rax        # 0x9afee8 <server+72>
+   0x0000000000437498 <+425>:	test   %rax,%rax
+   0x000000000043749b <+428>:	jne    0x4374cc <initServer+477>
+   0x000000000043749d <+430>:	callq  0x42a0e0 <__errno_location@plt>
+   0x00000000004374a2 <+435>:	mov    (%rax),%eax
+   0x00000000004374a4 <+437>:	mov    %eax,%edi
+---Type <return> to continue, or q <return> to quit---
+   0x00000000004374a6 <+439>:	callq  0x42ae20 <strerror@plt>
+   0x00000000004374ab <+444>:	mov    %rax,%rdx
+   0x00000000004374ae <+447>:	mov    $0x9252f0,%esi
+   0x00000000004374b3 <+452>:	mov    $0x3,%edi
+   0x00000000004374b8 <+457>:	mov    $0x0,%eax
+   0x00000000004374bd <+462>:	callq  0x433e9b <serverLog>
+   0x00000000004374c2 <+467>:	mov    $0x1,%edi
+   0x00000000004374c7 <+472>:	callq  0x42ada0 <exit@plt>
+   0x00000000004374cc <+477>:	mov    0x57918e(%rip),%eax        # 0x9b0660 <server+1984>
+   0x00000000004374d2 <+483>:	movslq %eax,%rdx
+   0x00000000004374d5 <+486>:	mov    %rdx,%rax
+   0x00000000004374d8 <+489>:	shl    $0x3,%rax
+   0x00000000004374dc <+493>:	add    %rdx,%rax
+   0x00000000004374df <+496>:	shl    $0x3,%rax
+   0x00000000004374e3 <+500>:	mov    %rax,%rdi
+   0x00000000004374e6 <+503>:	callq  0x440079 <zmalloc>
+   0x00000000004374eb <+508>:	mov    %rax,0x5789de(%rip)        # 0x9afed0 <server+48>
+   0x00000000004374f2 <+515>:	mov    0x578a7c(%rip),%eax        # 0x9aff74 <server+212>
+   0x00000000004374f8 <+521>:	test   %eax,%eax
+   0x00000000004374fa <+523>:	je     0x437522 <initServer+563>
+---Type <return> to continue, or q <return> to quit---
+   0x00000000004374fc <+525>:	mov    0x578a72(%rip),%eax        # 0x9aff74 <server+212>
+   0x0000000000437502 <+531>:	mov    $0x9b0054,%edx
+   0x0000000000437507 <+536>:	mov    $0x9b0014,%esi
+   0x000000000043750c <+541>:	mov    %eax,%edi
+   0x000000000043750e <+543>:	callq  0x436d5b <listenToPort>
+   0x0000000000437513 <+548>:	cmp    $0xffffffff,%eax
+   0x0000000000437516 <+551>:	jne    0x437522 <initServer+563>
+   0x0000000000437518 <+553>:	mov    $0x1,%edi
+   0x000000000043751d <+558>:	callq  0x42ada0 <exit@plt>
+   0x0000000000437522 <+563>:	mov    0x578a50(%rip),%eax        # 0x9aff78 <server+216>
+   0x0000000000437528 <+569>:	test   %eax,%eax
+   0x000000000043752a <+571>:	je     0x437552 <initServer+611>
+   0x000000000043752c <+573>:	mov    0x578a46(%rip),%eax        # 0x9aff78 <server+216>
+   0x0000000000437532 <+579>:	mov    $0x9b0098,%edx
+   0x0000000000437537 <+584>:	mov    $0x9b0058,%esi
+   0x000000000043753c <+589>:	mov    %eax,%edi
+   0x000000000043753e <+591>:	callq  0x436d5b <listenToPort>
+   0x0000000000437543 <+596>:	cmp    $0xffffffff,%eax
+   0x0000000000437546 <+599>:	jne    0x437552 <initServer+611>
+   0x0000000000437548 <+601>:	mov    $0x1,%edi
+---Type <return> to continue, or q <return> to quit---
+   0x000000000043754d <+606>:	callq  0x42ada0 <exit@plt>
+   0x0000000000437552 <+611>:	mov    0x578aaf(%rip),%rax        # 0x9b0008 <server+360>
+   0x0000000000437559 <+618>:	test   %rax,%rax
+   0x000000000043755c <+621>:	je     0x4375d3 <initServer+740>
+   0x000000000043755e <+623>:	mov    0x578aa3(%rip),%rax        # 0x9b0008 <server+360>
+   0x0000000000437565 <+630>:	mov    %rax,%rdi
+   0x0000000000437568 <+633>:	callq  0x42a110 <unlink@plt>
+   0x000000000043756d <+638>:	mov    0x578a09(%rip),%ecx        # 0x9aff7c <server+220>
+   0x0000000000437573 <+644>:	mov    0x578a97(%rip),%edx        # 0x9b0010 <server+368>
+   0x0000000000437579 <+650>:	mov    0x578a88(%rip),%rax        # 0x9b0008 <server+360>
+   0x0000000000437580 <+657>:	mov    %rax,%rsi
+   0x0000000000437583 <+660>:	mov    $0x9b0148,%edi
+   0x0000000000437588 <+665>:	callq  0x430ff3 <anetUnixServer>
+   0x000000000043758d <+670>:	mov    %eax,0x578b09(%rip)        # 0x9b009c <server+508>
+   0x0000000000437593 <+676>:	mov    0x578b03(%rip),%eax        # 0x9b009c <server+508>
+   0x0000000000437599 <+682>:	cmp    $0xffffffff,%eax
+---Type <return> to continue, or q <return> to quit---
+   0x000000000043759c <+685>:	jne    0x4375c1 <initServer+722>
+   0x000000000043759e <+687>:	mov    $0x9b0148,%edx
+   0x00000000004375a3 <+692>:	mov    $0x925324,%esi
+   0x00000000004375a8 <+697>:	mov    $0x3,%edi
+   0x00000000004375ad <+702>:	mov    $0x0,%eax
+   0x00000000004375b2 <+707>:	callq  0x433e9b <serverLog>
+   0x00000000004375b7 <+712>:	mov    $0x1,%edi
+   0x00000000004375bc <+717>:	callq  0x42ada0 <exit@plt>
+   0x00000000004375c1 <+722>:	mov    0x578ad5(%rip),%eax        # 0x9b009c <server+508>
+   0x00000000004375c7 <+728>:	mov    %eax,%esi
+   0x00000000004375c9 <+730>:	mov    $0x0,%edi
+   0x00000000004375ce <+735>:	callq  0x42fe59 <anetNonBlock>
+   0x00000000004375d3 <+740>:	mov    0x578a7b(%rip),%eax        # 0x9b0054 <server+436>
+   0x00000000004375d9 <+746>:	test   %eax,%eax
+   0x00000000004375db <+748>:	jne    0x43760f <initServer+800>
+   0x00000000004375dd <+750>:	mov    0x578ab5(%rip),%eax        # 0x9b0098 <server+504>
+   0x00000000004375e3 <+756>:	test   %eax,%eax
+   0x00000000004375e5 <+758>:	jne    0x43760f <initServer+800>
+   0x00000000004375e7 <+760>:	mov    0x578aaf(%rip),%eax        # 0x9b009c <server+508>
+---Type <return> to continue, or q <return> to quit---
+   0x00000000004375ed <+766>:	test   %eax,%eax
+   0x00000000004375ef <+768>:	jns    0x43760f <initServer+800>
+   0x00000000004375f1 <+770>:	mov    $0x925340,%esi
+   0x00000000004375f6 <+775>:	mov    $0x3,%edi
+   0x00000000004375fb <+780>:	mov    $0x0,%eax
+   0x0000000000437600 <+785>:	callq  0x433e9b <serverLog>
+   0x0000000000437605 <+790>:	mov    $0x1,%edi
+   0x000000000043760a <+795>:	callq  0x42ada0 <exit@plt>
+   0x000000000043760f <+800>:	movl   $0x0,-0x14(%rbp)
+   0x0000000000437616 <+807>:	jmpq   0x4377db <initServer+1260>
+   0x000000000043761b <+812>:	mov    0x5788ae(%rip),%rcx        # 0x9afed0 <server+48>
+   0x0000000000437622 <+819>:	mov    -0x14(%rbp),%eax
+   0x0000000000437625 <+822>:	movslq %eax,%rdx
+   0x0000000000437628 <+825>:	mov    %rdx,%rax
+   0x000000000043762b <+828>:	shl    $0x3,%rax
+   0x000000000043762f <+832>:	add    %rdx,%rax
+   0x0000000000437632 <+835>:	shl    $0x3,%rax
+   0x0000000000437636 <+839>:	lea    (%rcx,%rax,1),%rbx
+   0x000000000043763a <+843>:	mov    $0x0,%esi
+   0x000000000043763f <+848>:	mov    $0x996ee0,%edi
+   0x0000000000437644 <+853>:	callq  0x431813 <dictCreate>
+   0x0000000000437649 <+858>:	mov    %rax,(%rbx)
+---Type <return> to continue, or q <return> to quit---
+   0x000000000043764c <+861>:	mov    0x57887d(%rip),%rcx        # 0x9afed0 <server+48>
+   0x0000000000437653 <+868>:	mov    -0x14(%rbp),%eax
+   0x0000000000437656 <+871>:	movslq %eax,%rdx
+   0x0000000000437659 <+874>:	mov    %rdx,%rax
+   0x000000000043765c <+877>:	shl    $0x3,%rax
+   0x0000000000437660 <+881>:	add    %rdx,%rax
+   0x0000000000437663 <+884>:	shl    $0x3,%rax
+   0x0000000000437667 <+888>:	lea    (%rcx,%rax,1),%rbx
+   0x000000000043766b <+892>:	mov    $0x0,%esi
+   0x0000000000437670 <+897>:	mov    $0x996f60,%edi
+   0x0000000000437675 <+902>:	callq  0x431813 <dictCreate>
+   0x000000000043767a <+907>:	mov    %rax,0x8(%rbx)
+   0x000000000043767e <+911>:	mov    0x57884b(%rip),%rcx        # 0x9afed0 <server+48>
+   0x0000000000437685 <+918>:	mov    -0x14(%rbp),%eax
+   0x0000000000437688 <+921>:	movslq %eax,%rdx
+   0x000000000043768b <+924>:	mov    %rdx,%rax
+   0x000000000043768e <+927>:	shl    $0x3,%rax
+   0x0000000000437692 <+931>:	add    %rdx,%rax
+   0x0000000000437695 <+934>:	shl    $0x3,%rax
+   0x0000000000437699 <+938>:	add    %rcx,%rax
+   0x000000000043769c <+941>:	movq   $0x0,0x38(%rax)
+---Type <return> to continue, or q <return> to quit---
+   0x00000000004376a4 <+949>:	mov    0x578825(%rip),%rcx        # 0x9afed0 <server+48>
+   0x00000000004376ab <+956>:	mov    -0x14(%rbp),%eax
+   0x00000000004376ae <+959>:	movslq %eax,%rdx
+   0x00000000004376b1 <+962>:	mov    %rdx,%rax
+   0x00000000004376b4 <+965>:	shl    $0x3,%rax
+   0x00000000004376b8 <+969>:	add    %rdx,%rax
+   0x00000000004376bb <+972>:	shl    $0x3,%rax
+   0x00000000004376bf <+976>:	lea    (%rcx,%rax,1),%rbx
+   0x00000000004376c3 <+980>:	mov    $0x0,%esi
+   0x00000000004376c8 <+985>:	mov    $0x997020,%edi
+   0x00000000004376cd <+990>:	callq  0x431813 <dictCreate>
+   0x00000000004376d2 <+995>:	mov    %rax,0x10(%rbx)
+   0x00000000004376d6 <+999>:	mov    0x5787f3(%rip),%rcx        # 0x9afed0 <server+48>
+   0x00000000004376dd <+1006>:	mov    -0x14(%rbp),%eax
+   0x00000000004376e0 <+1009>:	movslq %eax,%rdx
+   0x00000000004376e3 <+1012>:	mov    %rdx,%rax
+   0x00000000004376e6 <+1015>:	shl    $0x3,%rax
+   0x00000000004376ea <+1019>:	add    %rdx,%rax
+   0x00000000004376ed <+1022>:	shl    $0x3,%rax
+   0x00000000004376f1 <+1026>:	lea    (%rcx,%rax,1),%rbx
+   0x00000000004376f5 <+1030>:	mov    $0x0,%esi
+---Type <return> to continue, or q <return> to quit---
+   0x00000000004376fa <+1035>:	mov    $0x996de0,%edi
+   0x00000000004376ff <+1040>:	callq  0x431813 <dictCreate>
+   0x0000000000437704 <+1045>:	mov    %rax,0x18(%rbx)
+   0x0000000000437708 <+1049>:	mov    0x5787c1(%rip),%rcx        # 0x9afed0 <server+48>
+   0x000000000043770f <+1056>:	mov    -0x14(%rbp),%eax
+   0x0000000000437712 <+1059>:	movslq %eax,%rdx
+   0x0000000000437715 <+1062>:	mov    %rdx,%rax
+   0x0000000000437718 <+1065>:	shl    $0x3,%rax
+   0x000000000043771c <+1069>:	add    %rdx,%rax
+   0x000000000043771f <+1072>:	shl    $0x3,%rax
+   0x0000000000437723 <+1076>:	lea    (%rcx,%rax,1),%rbx
+   0x0000000000437727 <+1080>:	mov    $0x0,%esi
+   0x000000000043772c <+1085>:	mov    $0x997020,%edi
+   0x0000000000437731 <+1090>:	callq  0x431813 <dictCreate>
+   0x0000000000437736 <+1095>:	mov    %rax,0x20(%rbx)
+   0x000000000043773a <+1099>:	mov    0x57878f(%rip),%rcx        # 0x9afed0 <server+48>
+   0x0000000000437741 <+1106>:	mov    -0x14(%rbp),%eax
+   0x0000000000437744 <+1109>:	movslq %eax,%rdx
+   0x0000000000437747 <+1112>:	mov    %rdx,%rax
+   0x000000000043774a <+1115>:	shl    $0x3,%rax
+   0x000000000043774e <+1119>:	add    %rdx,%rax
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437751 <+1122>:	shl    $0x3,%rax
+   0x0000000000437755 <+1126>:	lea    (%rcx,%rax,1),%rdx
+   0x0000000000437759 <+1130>:	mov    -0x14(%rbp),%eax
+   0x000000000043775c <+1133>:	mov    %eax,0x28(%rdx)
+   0x000000000043775f <+1136>:	mov    0x57876a(%rip),%rcx        # 0x9afed0 <server+48>
+   0x0000000000437766 <+1143>:	mov    -0x14(%rbp),%eax
+   0x0000000000437769 <+1146>:	movslq %eax,%rdx
+   0x000000000043776c <+1149>:	mov    %rdx,%rax
+   0x000000000043776f <+1152>:	shl    $0x3,%rax
+   0x0000000000437773 <+1156>:	add    %rdx,%rax
+   0x0000000000437776 <+1159>:	shl    $0x3,%rax
+   0x000000000043777a <+1163>:	add    %rcx,%rax
+   0x000000000043777d <+1166>:	movq   $0x0,0x30(%rax)
+   0x0000000000437785 <+1174>:	mov    0x578744(%rip),%rcx        # 0x9afed0 <server+48>
+   0x000000000043778c <+1181>:	mov    -0x14(%rbp),%eax
+   0x000000000043778f <+1184>:	movslq %eax,%rdx
+   0x0000000000437792 <+1187>:	mov    %rdx,%rax
+   0x0000000000437795 <+1190>:	shl    $0x3,%rax
+   0x0000000000437799 <+1194>:	add    %rdx,%rax
+   0x000000000043779c <+1197>:	shl    $0x3,%rax
+   0x00000000004377a0 <+1201>:	lea    (%rcx,%rax,1),%rbx
+---Type <return> to continue, or q <return> to quit---
+   0x00000000004377a4 <+1205>:	callq  0x42aff2 <listCreate>
+   0x00000000004377a9 <+1210>:	mov    %rax,0x40(%rbx)
+   0x00000000004377ad <+1214>:	mov    0x57871c(%rip),%rcx        # 0x9afed0 <server+48>
+   0x00000000004377b4 <+1221>:	mov    -0x14(%rbp),%eax
+   0x00000000004377b7 <+1224>:	movslq %eax,%rdx
+   0x00000000004377ba <+1227>:	mov    %rdx,%rax
+   0x00000000004377bd <+1230>:	shl    $0x3,%rax
+   0x00000000004377c1 <+1234>:	add    %rdx,%rax
+   0x00000000004377c4 <+1237>:	shl    $0x3,%rax
+   0x00000000004377c8 <+1241>:	add    %rcx,%rax
+   0x00000000004377cb <+1244>:	mov    0x40(%rax),%rax
+   0x00000000004377cf <+1248>:	movq   $0x43dca8,0x18(%rax)
+   0x00000000004377d7 <+1256>:	addl   $0x1,-0x14(%rbp)
+   0x00000000004377db <+1260>:	mov    0x578e7f(%rip),%eax        # 0x9b0660 <server+1984>
+   0x00000000004377e1 <+1266>:	cmp    %eax,-0x14(%rbp)
+   0x00000000004377e4 <+1269>:	jl     0x43761b <initServer+812>
+   0x00000000004377ea <+1275>:	callq  0x4c9120 <evictionPoolAlloc>
+   0x00000000004377ef <+1280>:	mov    $0x0,%esi
+   0x00000000004377f4 <+1285>:	mov    $0x997020,%edi
+   0x00000000004377f9 <+1290>:	callq  0x431813 <dictCreate>
+   0x00000000004377fe <+1295>:	mov    %rax,0x579323(%rip)        # 0x9b0b28 <se---Type <return> to continue, or q <return> to quit---
+rver+3208>
+   0x0000000000437805 <+1302>:	callq  0x42aff2 <listCreate>
+   0x000000000043780a <+1307>:	mov    %rax,0x57931f(%rip)        # 0x9b0b30 <server+3216>
+   0x0000000000437811 <+1314>:	mov    $0x0,%esi
+   0x0000000000437816 <+1319>:	mov    $0x997020,%edi
+   0x000000000043781b <+1324>:	callq  0x431813 <dictCreate>
+   0x0000000000437820 <+1329>:	mov    %rax,0x579311(%rip)        # 0x9b0b38 <server+3224>
+   0x0000000000437827 <+1336>:	mov    0x579302(%rip),%rax        # 0x9b0b30 <server+3216>
+   0x000000000043782e <+1343>:	movq   $0x481f8d,0x18(%rax)
+   0x0000000000437836 <+1351>:	mov    0x5792f3(%rip),%rax        # 0x9b0b30 <server+3216>
+   0x000000000043783d <+1358>:	movq   $0x481fc0,0x20(%rax)
+   0x0000000000437845 <+1366>:	movl   $0x0,0x5786bd(%rip)        # 0x9aff0c <server+108>
+   0x000000000043784f <+1376>:	movl   $0xffffffff,0x578f47(%rip)        # 0x9b07a0 <server+2304>
+   0x0000000000437859 <+1386>:	movl   $0xffffffff,0x578e9d(%rip)        # 0x9b0700 <server+2144>
+   0x0000000000437863 <+1396>:	movl   $0xffffffff,0x578703(%rip)        # 0x9aff70 <server+208>
+---Type <return> to continue, or q <return> to quit---
+   0x000000000043786d <+1406>:	movl   $0x0,0x578f7d(%rip)        # 0x9b07f4 <server+2388>
+   0x0000000000437877 <+1416>:	movq   $0x0,0x578f86(%rip)        # 0x9b0808 <server+2408>
+   0x0000000000437882 <+1427>:	movl   $0x0,0x578f84(%rip)        # 0x9b0810 <server+2416>
+   0x000000000043788c <+1437>:	movl   $0x0,0x578f7e(%rip)        # 0x9b0814 <server+2420>
+   0x0000000000437896 <+1447>:	movq   $0x0,0x578f77(%rip)        # 0x9b0818 <server+2424>
+   0x00000000004378a1 <+1458>:	movl   $0x0,0x578f75(%rip)        # 0x9b0820 <server+2432>
+   0x00000000004378ab <+1468>:	movl   $0x0,0x578f3b(%rip)        # 0x9b07f0 <server+2384>
+   0x00000000004378b5 <+1478>:	movl   $0xffffffff,0x578f6d(%rip)        # 0x9b082c <server+2444>
+   0x00000000004378bf <+1488>:	movl   $0xffffffff,0x578f67(%rip)        # 0x9b0830 <server+2448>
+   0x00000000004378c9 <+1498>:	movq   $0x0,0x578f74(%rip)        # 0x9b0848 <server+2472>
+   0x00000000004378d4 <+1509>:	callq  0x47d3a3 <aofRewriteBufferReset>
+   0x00000000004378d9 <+1514>:	callq  0x43dc28 <sdsempty>
+   0x00000000004378de <+1519>:	mov    %rax,0x578e2b(%rip)        # 0x9b0710 <se---Type <return> to continue, or q <return> to quit---
+rver+2160>
+   0x00000000004378e5 <+1526>:	mov    $0x0,%edi
+   0x00000000004378ea <+1531>:	callq  0x42a8b0 <time@plt>
+   0x00000000004378ef <+1536>:	mov    %rax,0x578eda(%rip)        # 0x9b07d0 <server+2352>
+   0x00000000004378f6 <+1543>:	movq   $0x0,0x578ed7(%rip)        # 0x9b07d8 <server+2360>
+   0x0000000000437901 <+1554>:	movq   $0xffffffffffffffff,0x578ed4(%rip)        # 0x9b07e0 <server+2368>
+   0x000000000043790c <+1565>:	movq   $0xffffffffffffffff,0x578ed1(%rip)        # 0x9b07e8 <server+2376>
+   0x0000000000437917 <+1576>:	movq   $0x0,0x578e6e(%rip)        # 0x9b0790 <server+2288>
+   0x0000000000437922 <+1587>:	callq  0x437100 <resetServerStats>
+   0x0000000000437927 <+1592>:	mov    $0x0,%edi
+   0x000000000043792c <+1597>:	callq  0x42a8b0 <time@plt>
+   0x0000000000437931 <+1602>:	mov    %rax,0x5789d0(%rip)        # 0x9b0308 <server+1128>
+   0x0000000000437938 <+1609>:	movq   $0x0,0x578a3d(%rip)        # 0x9b0380 <server+1248>
+   0x0000000000437943 <+1620>:	movq   $0x0,0x578ac2(%rip)        # 0x9b0410 <server+1392>
+   0x000000000043794e <+1631>:	movq   $0x0,0x578abf(%rip)        # 0x9b0418 <se---Type <return> to continue, or q <return> to quit---
+rver+1400>
+   0x0000000000437959 <+1642>:	movq   $0x0,0x578abc(%rip)        # 0x9b0420 <server+1408>
+   0x0000000000437964 <+1653>:	movl   $0x0,-0x18(%rbp)
+   0x000000000043796b <+1660>:	jmp    0x437988 <initServer+1689>
+   0x000000000043796d <+1662>:	mov    -0x18(%rbp),%eax
+   0x0000000000437970 <+1665>:	cltq   
+   0x0000000000437972 <+1667>:	add    $0xb0,%rax
+   0x0000000000437978 <+1673>:	movq   $0x0,0x9afea8(,%rax,8)
+   0x0000000000437984 <+1685>:	addl   $0x1,-0x18(%rbp)
+   0x0000000000437988 <+1689>:	cmpl   $0x3,-0x18(%rbp)
+   0x000000000043798c <+1693>:	jle    0x43796d <initServer+1662>
+   0x000000000043798e <+1695>:	movq   $0x0,0x578a3f(%rip)        # 0x9b03d8 <server+1336>
+   0x0000000000437999 <+1706>:	movq   $0x0,0x578a3c(%rip)        # 0x9b03e0 <server+1344>
+   0x00000000004379a4 <+1717>:	movq   $0x0,0x578a39(%rip)        # 0x9b03e8 <server+1352>
+   0x00000000004379af <+1728>:	movq   $0x0,0x578a36(%rip)        # 0x9b03f0 <server+1360>
+   0x00000000004379ba <+1739>:	movq   $0x0,0x578a33(%rip)        # 0x9b03f8 <server+1368>
+   0x00000000004379c5 <+1750>:	movl   $0x0,0x578e29(%rip)        # 0x9b07f8 <se---Type <return> to continue, or q <return> to quit---
+rver+2392>
+   0x00000000004379cf <+1760>:	movl   $0x0,0x578d7f(%rip)        # 0x9b0758 <server+2232>
+   0x00000000004379d9 <+1770>:	movl   $0x0,0x578d79(%rip)        # 0x9b075c <server+2236>
+   0x00000000004379e3 <+1780>:	movl   $0x0,0x578f43(%rip)        # 0x9b0930 <server+2704>
+   0x00000000004379ed <+1790>:	mov    0x5784f4(%rip),%rax        # 0x9afee8 <server+72>
+   0x00000000004379f4 <+1797>:	mov    $0x0,%r8d
+   0x00000000004379fa <+1803>:	mov    $0x0,%ecx
+   0x00000000004379ff <+1808>:	mov    $0x4351c4,%edx
+   0x0000000000437a04 <+1813>:	mov    $0x1,%esi
+   0x0000000000437a09 <+1818>:	mov    %rax,%rdi
+   0x0000000000437a0c <+1821>:	callq  0x42f389 <aeCreateTimeEvent>
+   0x0000000000437a11 <+1826>:	cmp    $0xffffffffffffffff,%rax
+   0x0000000000437a15 <+1830>:	jne    0x437a3a <initServer+1867>
+   0x0000000000437a17 <+1832>:	mov    $0x925370,%edx
+   0x0000000000437a1c <+1837>:	mov    $0xb3f,%esi
+   0x0000000000437a21 <+1842>:	mov    $0x925390,%edi
+   0x0000000000437a26 <+1847>:	mov    $0x0,%eax
+   0x0000000000437a2b <+1852>:	callq  0x4873ea <_serverPanic>
+   0x0000000000437a30 <+1857>:	mov    $0x1,%edi
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437a35 <+1862>:	callq  0x42a160 <_exit@plt>
+   0x0000000000437a3a <+1867>:	movl   $0x0,-0x14(%rbp)
+   0x0000000000437a41 <+1874>:	jmp    0x437a9e <initServer+1967>
+   0x0000000000437a43 <+1876>:	mov    -0x14(%rbp),%eax
+   0x0000000000437a46 <+1879>:	cltq   
+   0x0000000000437a48 <+1881>:	add    $0x5c,%rax
+   0x0000000000437a4c <+1885>:	mov    0x9afea4(,%rax,4),%esi
+   0x0000000000437a53 <+1892>:	mov    0x57848e(%rip),%rax        # 0x9afee8 <server+72>
+   0x0000000000437a5a <+1899>:	mov    $0x0,%r8d
+   0x0000000000437a60 <+1905>:	mov    $0x4489cf,%ecx
+   0x0000000000437a65 <+1910>:	mov    $0x1,%edx
+   0x0000000000437a6a <+1915>:	mov    %rax,%rdi
+   0x0000000000437a6d <+1918>:	callq  0x42f07d <aeCreateFileEvent>
+   0x0000000000437a72 <+1923>:	cmp    $0xffffffff,%eax
+   0x0000000000437a75 <+1926>:	jne    0x437a9a <initServer+1963>
+   0x0000000000437a77 <+1928>:	mov    $0x9253a0,%edx
+   0x0000000000437a7c <+1933>:	mov    $0xb49,%esi
+   0x0000000000437a81 <+1938>:	mov    $0x925390,%edi
+   0x0000000000437a86 <+1943>:	mov    $0x0,%eax
+   0x0000000000437a8b <+1948>:	callq  0x4873ea <_serverPanic>
+   0x0000000000437a90 <+1953>:	mov    $0x1,%edi
+   0x0000000000437a95 <+1958>:	callq  0x42a160 <_exit@plt>
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437a9a <+1963>:	addl   $0x1,-0x14(%rbp)
+   0x0000000000437a9e <+1967>:	mov    0x5785b0(%rip),%eax        # 0x9b0054 <server+436>
+   0x0000000000437aa4 <+1973>:	cmp    %eax,-0x14(%rbp)
+   0x0000000000437aa7 <+1976>:	jl     0x437a43 <initServer+1876>
+   0x0000000000437aa9 <+1978>:	movl   $0x0,-0x14(%rbp)
+   0x0000000000437ab0 <+1985>:	jmp    0x437b0d <initServer+2078>
+   0x0000000000437ab2 <+1987>:	mov    -0x14(%rbp),%eax
+   0x0000000000437ab5 <+1990>:	cltq   
+   0x0000000000437ab7 <+1992>:	add    $0x6c,%rax
+   0x0000000000437abb <+1996>:	mov    0x9afea8(,%rax,4),%esi
+   0x0000000000437ac2 <+2003>:	mov    0x57841f(%rip),%rax        # 0x9afee8 <server+72>
+   0x0000000000437ac9 <+2010>:	mov    $0x0,%r8d
+   0x0000000000437acf <+2016>:	mov    $0x448a97,%ecx
+   0x0000000000437ad4 <+2021>:	mov    $0x1,%edx
+   0x0000000000437ad9 <+2026>:	mov    %rax,%rdi
+   0x0000000000437adc <+2029>:	callq  0x42f07d <aeCreateFileEvent>
+   0x0000000000437ae1 <+2034>:	cmp    $0xffffffff,%eax
+   0x0000000000437ae4 <+2037>:	jne    0x437b09 <initServer+2074>
+   0x0000000000437ae6 <+2039>:	mov    $0x9253d8,%edx
+   0x0000000000437aeb <+2044>:	mov    $0xb51,%esi
+   0x0000000000437af0 <+2049>:	mov    $0x925390,%edi
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437af5 <+2054>:	mov    $0x0,%eax
+   0x0000000000437afa <+2059>:	callq  0x4873ea <_serverPanic>
+   0x0000000000437aff <+2064>:	mov    $0x1,%edi
+   0x0000000000437b04 <+2069>:	callq  0x42a160 <_exit@plt>
+   0x0000000000437b09 <+2074>:	addl   $0x1,-0x14(%rbp)
+   0x0000000000437b0d <+2078>:	mov    0x578585(%rip),%eax        # 0x9b0098 <server+504>
+   0x0000000000437b13 <+2084>:	cmp    %eax,-0x14(%rbp)
+   0x0000000000437b16 <+2087>:	jl     0x437ab2 <initServer+1987>
+   0x0000000000437b18 <+2089>:	mov    0x57857e(%rip),%eax        # 0x9b009c <server+508>
+   0x0000000000437b1e <+2095>:	test   %eax,%eax
+   0x0000000000437b20 <+2097>:	jle    0x437b6f <initServer+2176>
+   0x0000000000437b22 <+2099>:	mov    0x578574(%rip),%esi        # 0x9b009c <server+508>
+   0x0000000000437b28 <+2105>:	mov    0x5783b9(%rip),%rax        # 0x9afee8 <server+72>
+   0x0000000000437b2f <+2112>:	mov    $0x0,%r8d
+   0x0000000000437b35 <+2118>:	mov    $0x448b67,%ecx
+   0x0000000000437b3a <+2123>:	mov    $0x1,%edx
+   0x0000000000437b3f <+2128>:	mov    %rax,%rdi
+   0x0000000000437b42 <+2131>:	callq  0x42f07d <aeCreateFileEvent>
+   0x0000000000437b47 <+2136>:	cmp    $0xffffffff,%eax
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437b4a <+2139>:	jne    0x437b6f <initServer+2176>
+   0x0000000000437b4c <+2141>:	mov    $0x925410,%edx
+   0x0000000000437b51 <+2146>:	mov    $0xb56,%esi
+   0x0000000000437b56 <+2151>:	mov    $0x925390,%edi
+   0x0000000000437b5b <+2156>:	mov    $0x0,%eax
+   0x0000000000437b60 <+2161>:	callq  0x4873ea <_serverPanic>
+   0x0000000000437b65 <+2166>:	mov    $0x1,%edi
+   0x0000000000437b6a <+2171>:	callq  0x42a160 <_exit@plt>
+   0x0000000000437b6f <+2176>:	mov    0x5783f3(%rip),%esi        # 0x9aff68 <server+200>
+   0x0000000000437b75 <+2182>:	mov    0x57836c(%rip),%rax        # 0x9afee8 <server+72>
+   0x0000000000437b7c <+2189>:	mov    $0x0,%r8d
+   0x0000000000437b82 <+2195>:	mov    $0x4c2920,%ecx
+   0x0000000000437b87 <+2200>:	mov    $0x1,%edx
+   0x0000000000437b8c <+2205>:	mov    %rax,%rdi
+   0x0000000000437b8f <+2208>:	callq  0x42f07d <aeCreateFileEvent>
+   0x0000000000437b94 <+2213>:	cmp    $0xffffffff,%eax
+   0x0000000000437b97 <+2216>:	jne    0x437bbc <initServer+2253>
+   0x0000000000437b99 <+2218>:	mov    $0x925448,%edx
+   0x0000000000437b9e <+2223>:	mov    $0xb5d,%esi
+   0x0000000000437ba3 <+2228>:	mov    $0x925390,%edi
+   0x0000000000437ba8 <+2233>:	mov    $0x0,%eax
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437bad <+2238>:	callq  0x4873ea <_serverPanic>
+   0x0000000000437bb2 <+2243>:	mov    $0x1,%edi
+   0x0000000000437bb7 <+2248>:	callq  0x42a160 <_exit@plt>
+   0x0000000000437bbc <+2253>:	mov    0x578325(%rip),%rax        # 0x9afee8 <server+72>
+   0x0000000000437bc3 <+2260>:	mov    $0x435a9b,%esi
+   0x0000000000437bc8 <+2265>:	mov    %rax,%rdi
+   0x0000000000437bcb <+2268>:	callq  0x42fca8 <aeSetBeforeSleepProc>
+   0x0000000000437bd0 <+2273>:	mov    0x578311(%rip),%rax        # 0x9afee8 <server+72>
+   0x0000000000437bd7 <+2280>:	mov    $0x435c5d,%esi
+   0x0000000000437bdc <+2285>:	mov    %rax,%rdi
+   0x0000000000437bdf <+2288>:	callq  0x42fcc3 <aeSetAfterSleepProc>
+   0x0000000000437be4 <+2293>:	mov    0x578ad2(%rip),%eax        # 0x9b06bc <server+2076>
+   0x0000000000437bea <+2299>:	cmp    $0x1,%eax
+   0x0000000000437bed <+2302>:	jne    0x437c4d <initServer+2398>
+   0x0000000000437bef <+2304>:	mov    0x578ad2(%rip),%rax        # 0x9b06c8 <server+2088>
+   0x0000000000437bf6 <+2311>:	mov    $0x1a4,%edx
+   0x0000000000437bfb <+2316>:	mov    $0x441,%esi
+   0x0000000000437c00 <+2321>:	mov    %rax,%rdi
+   0x0000000000437c03 <+2324>:	mov    $0x0,%eax
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437c08 <+2329>:	callq  0x42ab50 <open64@plt>
+   0x0000000000437c0d <+2334>:	mov    %eax,0x578b05(%rip)        # 0x9b0718 <server+2168>
+   0x0000000000437c13 <+2340>:	mov    0x578aff(%rip),%eax        # 0x9b0718 <server+2168>
+   0x0000000000437c19 <+2346>:	cmp    $0xffffffff,%eax
+   0x0000000000437c1c <+2349>:	jne    0x437c4d <initServer+2398>
+   0x0000000000437c1e <+2351>:	callq  0x42a0e0 <__errno_location@plt>
+   0x0000000000437c23 <+2356>:	mov    (%rax),%eax
+   0x0000000000437c25 <+2358>:	mov    %eax,%edi
+   0x0000000000437c27 <+2360>:	callq  0x42ae20 <strerror@plt>
+   0x0000000000437c2c <+2365>:	mov    %rax,%rdx
+   0x0000000000437c2f <+2368>:	mov    $0x925498,%esi
+   0x0000000000437c34 <+2373>:	mov    $0x3,%edi
+   0x0000000000437c39 <+2378>:	mov    $0x0,%eax
+   0x0000000000437c3e <+2383>:	callq  0x433e9b <serverLog>
+   0x0000000000437c43 <+2388>:	mov    $0x1,%edi
+   0x0000000000437c48 <+2393>:	callq  0x42ada0 <exit@plt>
+   0x0000000000437c4d <+2398>:	mov    0x5782b5(%rip),%eax        # 0x9aff08 <server+104>
+   0x0000000000437c53 <+2404>:	cmp    $0x20,%eax
+   0x0000000000437c56 <+2407>:	jne    0x437c8e <initServer+2463>
+   0x0000000000437c58 <+2409>:	mov    0x578de9(%rip),%rax        # 0x9b0a48 <se---Type <return> to continue, or q <return> to quit---
+rver+2984>
+   0x0000000000437c5f <+2416>:	test   %rax,%rax
+   0x0000000000437c62 <+2419>:	jne    0x437c8e <initServer+2463>
+   0x0000000000437c64 <+2421>:	mov    $0x9254c0,%esi
+   0x0000000000437c69 <+2426>:	mov    $0x3,%edi
+   0x0000000000437c6e <+2431>:	mov    $0x0,%eax
+   0x0000000000437c73 <+2436>:	callq  0x433e9b <serverLog>
+   0x0000000000437c78 <+2441>:	mov    $0xc0000000,%eax
+   0x0000000000437c7d <+2446>:	mov    %rax,0x578dc4(%rip)        # 0x9b0a48 <server+2984>
+   0x0000000000437c84 <+2453>:	movl   $0x700,0x578dc2(%rip)        # 0x9b0a50 <server+2992>
+   0x0000000000437c8e <+2463>:	mov    0x578eb0(%rip),%eax        # 0x9b0b44 <server+3236>
+   0x0000000000437c94 <+2469>:	test   %eax,%eax
+   0x0000000000437c96 <+2471>:	je     0x437c9d <initServer+2478>
+   0x0000000000437c98 <+2473>:	callq  0x48bac3 <clusterInit>
+   0x0000000000437c9d <+2478>:	callq  0x45e236 <replicationScriptCacheInit>
+   0x0000000000437ca2 <+2483>:	mov    $0x1,%edi
+   0x0000000000437ca7 <+2488>:	callq  0x49b0a8 <scriptingInit>
+   0x0000000000437cac <+2493>:	callq  0x4982ac <slowlogInit>
+   0x0000000000437cb1 <+2498>:	callq  0x4b5843 <latencyMonitorInit>
+   0x0000000000437cb6 <+2503>:	nop
+---Type <return> to continue, or q <return> to quit---
+   0x0000000000437cb7 <+2504>:	mov    -0x8(%rbp),%rbx
+   0x0000000000437cbb <+2508>:	leaveq 
+   0x0000000000437cbc <+2509>:	retq   
+End of assembler dump.
+(gdb) show disassembly-flavor
+The disassembly flavor is "att".
+(gdb) set disassembly-flavor intel
+(gdb) disassemble
+Dump of assembler code for function initServer:
+   0x00000000004372ef <+0>:	push   rbp
+   0x00000000004372f0 <+1>:	mov    rbp,rsp
+   0x00000000004372f3 <+4>:	push   rbx
+   0x00000000004372f4 <+5>:	sub    rsp,0x18
+=> 0x00000000004372f8 <+9>:	mov    esi,0x1
+   0x00000000004372fd <+14>:	mov    edi,0x1
+   0x0000000000437302 <+19>:	call   0x42a780 <signal@plt>
+   0x0000000000437307 <+24>:	mov    esi,0x1
+   0x000000000043730c <+29>:	mov    edi,0xd
+   0x0000000000437311 <+34>:	call   0x42a780 <signal@plt>
+   0x0000000000437316 <+39>:	call   0x43c567 <setupSignalHandlers>
+   0x000000000043731b <+44>:	mov    eax,DWORD PTR [rip+0x579547]        # 0x9b0868 <server+2504>
+   0x0000000000437321 <+50>:	test   eax,eax
+   0x0000000000437323 <+52>:	je     0x43733f <initServer+80>
+   0x0000000000437325 <+54>:	mov    edx,DWORD PTR [rip+0x57954d]        # 0x9b0878 <server+2520>
+   0x000000000043732b <+60>:	mov    rax,QWORD PTR [rip+0x57953e]        # 0x9b0870 <server+2512>
+   0x0000000000437332 <+67>:	mov    esi,0x19
+   0x0000000000437337 <+72>:	mov    rdi,rax
+   0x000000000043733a <+75>:	call   0x42ad40 <openlog@plt>
+---Type <return> to continue, or q <return> to quit---q
+Quit
+(gdb) quit
+A debugging session is active.
+
+	Inferior 1 [process 22802] will be killed.
+
+Quit anyway? (y or n) y
+[root@centos-linux src]# gdb redis-server 
+GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-120.el7
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-redhat-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+Reading symbols from /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server...done.
+(gdb) set args ../redis.conf
+(gdb) show args
+Argument list to give program being debugged when it is started is "../redis.conf".
+(gdb) break main
+Breakpoint 1 at 0x43cdad: file server.c, line 5001.
+(gdb) run
+Starting program: /root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server ../redis.conf
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Breakpoint 1, main (argc=2, argv=0x7fffffffdce8) at server.c:5001
+5001	    spt_init(argc, argv);
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-325.el7_9.x86_64
+(gdb) list
+4996	    }
+4997	#endif
+4998	
+4999	    /* We need to initialize our libraries, and the server configuration. */
+5000	#ifdef INIT_SETPROCTITLE_REPLACEMENT
+5001	    spt_init(argc, argv);
+5002	#endif
+5003	    setlocale(LC_COLLATE,"");
+5004	    tzset(); /* Populates 'timezone' global. */
+5005	    zmalloc_set_oom_handler(redisOutOfMemoryHandler);
+(gdb) p argc
+$1 = 2
+(gdb) p argv
+$2 = (char **) 0x7fffffffdce8
+(gdb) p *argv
+$3 = 0x7fffffffe048 "/root/Desktop/network/cpp_server_dev_01/redis-6.0.3/src/redis-server"
+(gdb) p *argv[1]
+$4 = 46 '.'
+(gdb) p *argv[2]
+Cannot access memory at address 0x0
+(gdb) watch argc
+Hardware watchpoint 2: argc
+(gdb) p argc=3
+$5 = 3
+(gdb) bt
+#0  main (argc=3, argv=0x7fffffffdce8) at server.c:5001
+(gdb) watch类似于vs等工具中运行时对某数据设置数据断点
+Invalid character '�' in expression.
+(gdb) disassemble
+Dump of assembler code for function main:
+   0x000000000043cd9b <+0>:	push   %rbp
+   0x000000000043cd9c <+1>:	mov    %rsp,%rbp
+   0x000000000043cd9f <+4>:	push   %r12
+   0x000000000043cda1 <+6>:	push   %rbx
+   0x000000000043cda2 <+7>:	sub    $0x50,%rsp
+   0x000000000043cda6 <+11>:	mov    %edi,-0x54(%rbp)
+   0x000000000043cda9 <+14>:	mov    %rsi,-0x60(%rbp)
+=> 0x000000000043cdad <+18>:	mov    -0x60(%rbp),%rdx
+   0x000000000043cdb1 <+22>:	mov    -0x54(%rbp),%eax
+   0x000000000043cdb4 <+25>:	mov    %rdx,%rsi
+   0x000000000043cdb7 <+28>:	mov    %eax,%edi
+   0x000000000043cdb9 <+30>:	callq  0x4b0a50 <spt_init>
+   0x000000000043cdbe <+35>:	mov    $0x924e3b,%esi
+   0x000000000043cdc3 <+40>:	mov    $0x3,%edi
+   0x000000000043cdc8 <+45>:	callq  0x42aab0 <setlocale@plt>
+   0x000000000043cdcd <+50>:	callq  0x42a880 <tzset@plt>
+   0x000000000043cdd2 <+55>:	mov    $0x43cb1e,%edi
+   0x000000000043cdd7 <+60>:	callq  0x44041d <zmalloc_set_oom_handler>
+   0x000000000043cddc <+65>:	mov    $0x0,%edi
+   0x000000000043cde1 <+70>:	callq  0x42a8b0 <time@plt>
+   0x000000000043cde6 <+75>:	mov    %eax,%ebx
+   0x000000000043cde8 <+77>:	callq  0x42a2e0 <getpid@plt>
+   0x000000000043cded <+82>:	xor    %ebx,%eax
+   0x000000000043cdef <+84>:	mov    %eax,%edi
+   0x000000000043cdf1 <+86>:	callq  0x42a690 <srand@plt>
+   0x000000000043cdf6 <+91>:	lea    -0x40(%rbp),%rax
+   0x000000000043cdfa <+95>:	mov    $0x0,%esi
+   0x000000000043cdff <+100>:	mov    %rax,%rdi
+   0x000000000043ce02 <+103>:	callq  0x42a4e0 <gettimeofday@plt>
+   0x000000000043ce07 <+108>:	callq  0x4a2839 <crc64_init>
+   0x000000000043ce0c <+113>:	lea    -0x50(%rbp),%rax
+   0x000000000043ce10 <+117>:	mov    $0x10,%esi
+   0x000000000043ce15 <+122>:	mov    %rax,%rdi
+   0x000000000043ce18 <+125>:	callq  0x44fc60 <getRandomBytes>
+   0x000000000043ce1d <+130>:	lea    -0x50(%rbp),%rax
+   0x000000000043ce21 <+134>:	mov    %rax,%rdi
+   0x000000000043ce24 <+137>:	callq  0x431754 <dictSetHashFunctionSeed>
+   0x000000000043ce29 <+142>:	mov    -0x60(%rbp),%rdx
+   0x000000000043ce2d <+146>:	mov    -0x54(%rbp),%eax
+   0x000000000043ce30 <+149>:	mov    %rdx,%rsi
+   0x000000000043ce33 <+152>:	mov    %eax,%edi
+   0x000000000043ce35 <+154>:	callq  0x43c860 <checkForSentinelMode>
+   0x000000000043ce3a <+159>:	mov    %eax,0x5730fc(%rip)        # 0x9aff3c <server+156>
+   0x000000000043ce40 <+165>:	callq  0x436429 <initServerConfig>
+   0x000000000043ce45 <+170>:	callq  0x4e1bf6 <ACLInit>
+   0x000000000043ce4a <+175>:	callq  0x4c7160 <moduleInitModulesSystem>
+   0x000000000043ce4f <+180>:	callq  0x4e69b4 <tlsInit>
+   0x000000000043ce54 <+185>:	mov    -0x60(%rbp),%rax
+   0x000000000043ce58 <+189>:	mov    (%rax),%rax
+   0x000000000043ce5b <+192>:	mov    %rax,%rdi
+   0x000000000043ce5e <+195>:	callq  0x450018 <getAbsolutePath>
+   0x000000000043ce63 <+200>:	mov    %rax,0x573046(%rip)        # 0x9afeb0 <server+16>
+---Type <return> to continue, or q <return> to quit---q
+Quit
+(gdb) display $r12
+1: $r12 = 4370208
+(gdb) display $rsp
+2: $rsp = (void *) 0x7fffffffdba0
+(gdb) display 0x7fffffffdba0
+3: 0x7fffffffdba0 = 140737488346016
+(gdb) 当提示找不到某文件，可以使用 dir /path/to/src 重定位可执行程序和源码的关系
+Undefined command: "".  Try "help".
+(gdb) show dir
+Source directories searched: $cdir:$cwd
+(gdb) 
+
+
+
+
+
+
+
+gdb调试多进程程序（Nginx）
+
+
+
+
+父进程
+
+
+
+[root@centos-linux cpp_server_dev_01]# wget http://nginx.org/download/nginx-1.18.0.tar.gz
+--2021-11-30 16:52:55--  http://nginx.org/download/nginx-1.18.0.tar.gz
+Resolving nginx.org (nginx.org)... 52.58.199.22, 3.125.197.172
+Connecting to nginx.org (nginx.org)|52.58.199.22|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1039530 (1015K) [application/octet-stream]
+Saving to: ‘nginx-1.18.0.tar.gz’
+
+100%[===========================================================================================================================================================>] 1,039,530    399KB/s   in 2.5s   
+
+2021-11-30 16:52:58 (399 KB/s) - ‘nginx-1.18.0.tar.gz’ saved [1039530/1039530]
+
+[root@centos-linux cpp_server_dev_01]# tar zxvf nginx-1.18.0.tar.gz 
+
+[root@centos-linux cpp_server_dev_01]# cd nginx-1.18.0/
+[root@centos-linux nginx-1.18.0]# ./configure 
+[root@centos-linux nginx-1.18.0]# make CFLAGS="-g -O0" -j4
+[root@centos-linux nginx-1.18.0]# make install   
+[root@centos-linux nginx-1.18.0]# cd /usr/local/nginx/sbin/
+[root@centos-linux sbin]# ll
+total 7404
+-rwxr-xr-x. 1 root root 3566568 Nov 30 16:56 nginx
+-rwxr-xr-x. 1 root root 4013616 Nov 30  2020 nginx.old
+[root@centos-linux sbin]# ./nginx -c /usr/local/nginx/conf/nginx.conf
+[root@centos-linux sbin]# lsof -i -Pn | grep nginx
+nginx      5438   root    6u  IPv4 1143256      0t0  TCP *:80 (LISTEN)
+nginx      5440 nobody    6u  IPv4 1143256      0t0  TCP *:80 (LISTEN)
+[root@centos-linux sbin]# gdb attach 5438
+GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-120.el7
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-redhat-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+attach: No such file or directory.
+Attaching to process 5438
+Reading symbols from /usr/local/nginx/sbin/nginx...done.
+Reading symbols from /lib64/libdl.so.2...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libdl.so.2
+Reading symbols from /lib64/libpthread.so.0...(no debugging symbols found)...done.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+Loaded symbols for /lib64/libpthread.so.0
+Reading symbols from /lib64/libcrypt.so.1...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libcrypt.so.1
+Reading symbols from /lib64/libpcre.so.1...Reading symbols from /lib64/libpcre.so.1...(no debugging symbols found)...done.
+(no debugging symbols found)...done.
+Loaded symbols for /lib64/libpcre.so.1
+Reading symbols from /lib64/libz.so.1...Reading symbols from /lib64/libz.so.1...(no debugging symbols found)...done.
+(no debugging symbols found)...done.
+Loaded symbols for /lib64/libz.so.1
+Reading symbols from /lib64/libc.so.6...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libc.so.6
+Reading symbols from /lib64/ld-linux-x86-64.so.2...(no debugging symbols found)...done.
+Loaded symbols for /lib64/ld-linux-x86-64.so.2
+Reading symbols from /lib64/libfreebl3.so...Reading symbols from /lib64/libfreebl3.so...(no debugging symbols found)...done.
+(no debugging symbols found)...done.
+Loaded symbols for /lib64/libfreebl3.so
+Reading symbols from /lib64/libnss_files.so.2...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libnss_files.so.2
+0x00007f710503b6c6 in sigsuspend () from /lib64/libc.so.6
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-325.el7_9.x86_64 nss-softokn-freebl-3.67.0-3.el7_9.x86_64 pcre-8.32-17.el7.x86_64 zlib-1.2.7-19.el7_9.x86_64
+(gdb) bt
+#0  0x00007f710503b6c6 in sigsuspend () from /lib64/libc.so.6
+#1  0x000000000044b011 in ngx_master_process_cycle (cycle=0x1cdb7a0) at src/os/unix/ngx_process_cycle.c:164
+#2  0x000000000040c06b in main (argc=3, argv=0x7fffd992c708) at src/core/nginx.c:382
+(gdb) f 1
+#1  0x000000000044b011 in ngx_master_process_cycle (cycle=0x1cdb7a0) at src/os/unix/ngx_process_cycle.c:164
+164	        sigsuspend(&set);
+(gdb) l
+159	            }
+160	        }
+161	
+162	        ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "sigsuspend");
+163	
+164	        sigsuspend(&set);
+165	
+166	        ngx_time_update();
+167	
+168	        ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+(gdb) 
+
+
+
+attach子进程
+
+
+
+[root@centos-linux cpp_server_dev_01]# lsof -l -Pn | grep nginx
+nginx      5438              0  cwd       DIR              253,0      4096    1057458 /usr/local/nginx/sbin
+nginx      5438              0  rtd       DIR              253,0      4096          2 /
+nginx      5438              0  txt       REG              253,0   3566568    1048653 /usr/local/nginx/sbin/nginx
+nginx      5438              0  mem       REG              253,0     61560     151601 /usr/lib64/libnss_files-2.17.so
+nginx      5438              0  mem       REG              253,0     11392     151486 /usr/lib64/libfreebl3.so
+nginx      5438              0  mem       REG              253,0   2156592     151496 /usr/lib64/libc-2.17.so
+nginx      5438              0  mem       REG              253,0     90176     151908 /usr/lib64/libz.so.1.2.7
+nginx      5438              0  mem       REG              253,0    402384     151991 /usr/lib64/libpcre.so.1.2.0
+nginx      5438              0  mem       REG              253,0     40600     151500 /usr/lib64/libcrypt-2.17.so
+nginx      5438              0  mem       REG              253,0    142144     151619 /usr/lib64/libpthread-2.17.so
+nginx      5438              0  mem       REG              253,0     19248     151502 /usr/lib64/libdl-2.17.so
+nginx      5438              0  mem       REG              253,0    163312     151489 /usr/lib64/ld-2.17.so
+nginx      5438              0  DEL       REG                0,4              1143257 /dev/zero
+nginx      5438              0    0u      CHR                1,3       0t0       6663 /dev/null
+nginx      5438              0    1u      CHR                1,3       0t0       6663 /dev/null
+nginx      5438              0    2w      REG              253,0     21758    1057480 /usr/local/nginx/logs/error.log
+nginx      5438              0    3u     unix 0xffff8a2ebbed6e80       0t0    1143870 socket
+nginx      5438              0    4w      REG              253,0     19085    1057486 /usr/local/nginx/logs/access.log
+nginx      5438              0    5w      REG              253,0     21758    1057480 /usr/local/nginx/logs/error.log
+nginx      5438              0    6u     IPv4            1143256       0t0        TCP *:80 (LISTEN)
+nginx      5438              0    7u     unix 0xffff8a2ebbed6600       0t0    1143871 socket
+nginx      5440             99  cwd       DIR              253,0      4096    1057458 /usr/local/nginx/sbin
+nginx      5440             99  rtd       DIR              253,0      4096          2 /
+nginx      5440             99  txt       REG              253,0   3566568    1048653 /usr/local/nginx/sbin/nginx
+nginx      5440             99  mem       REG              253,0     37168     157743 /usr/lib64/libnss_sss.so.2
+nginx      5440             99  mem       REG              253,0     61560     151601 /usr/lib64/libnss_files-2.17.so
+nginx      5440             99  mem       REG              253,0     11392     151486 /usr/lib64/libfreebl3.so
+nginx      5440             99  mem       REG              253,0   2156592     151496 /usr/lib64/libc-2.17.so
+nginx      5440             99  mem       REG              253,0     90176     151908 /usr/lib64/libz.so.1.2.7
+nginx      5440             99  mem       REG              253,0    402384     151991 /usr/lib64/libpcre.so.1.2.0
+nginx      5440             99  mem       REG              253,0     40600     151500 /usr/lib64/libcrypt-2.17.so
+nginx      5440             99  mem       REG              253,0    142144     151619 /usr/lib64/libpthread-2.17.so
+nginx      5440             99  mem       REG              253,0     19248     151502 /usr/lib64/libdl-2.17.so
+nginx      5440             99  mem       REG              253,0    163312     151489 /usr/lib64/ld-2.17.so
+nginx      5440             99  DEL       REG                0,4              1143257 /dev/zero
+nginx      5440             99    0u      CHR                1,3       0t0       6663 /dev/null
+nginx      5440             99    1u      CHR                1,3       0t0       6663 /dev/null
+nginx      5440             99    2w      REG              253,0     21758    1057480 /usr/local/nginx/logs/error.log
+nginx      5440             99    4w      REG              253,0     19085    1057486 /usr/local/nginx/logs/access.log
+nginx      5440             99    5w      REG              253,0     21758    1057480 /usr/local/nginx/logs/error.log
+nginx      5440             99    6u     IPv4            1143256       0t0        TCP *:80 (LISTEN)
+nginx      5440             99    7u     unix 0xffff8a2ebbed6600       0t0    1143871 socket
+nginx      5440             99    8u  a_inode               0,10         0       6659 [eventpoll]
+nginx      5440             99    9u  a_inode               0,10         0       6659 [eventfd]
+gdb        5620              0  cwd       DIR              253,0      4096    1057458 /usr/local/nginx/sbin
+gdb        5620              0  mem       REG              253,0   3566568    1048653 /usr/local/nginx/sbin/nginx
+gdb        5620              0    7r      REG              253,0   3566568    1048653 /usr/local/nginx/sbin/nginx
+bash      32116              0  cwd       DIR              253,0      4096    1057458 /usr/local/nginx/sbin
+[root@centos-linux cpp_server_dev_01]# gdb attach 5440
+GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-120.el7
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-redhat-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+attach: No such file or directory.
+Attaching to process 5440
+Reading symbols from /usr/local/nginx/sbin/nginx...done.
+Reading symbols from /lib64/libdl.so.2...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libdl.so.2
+Reading symbols from /lib64/libpthread.so.0...(no debugging symbols found)...done.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+Loaded symbols for /lib64/libpthread.so.0
+Reading symbols from /lib64/libcrypt.so.1...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libcrypt.so.1
+Reading symbols from /lib64/libpcre.so.1...Reading symbols from /lib64/libpcre.so.1...(no debugging symbols found)...done.
+(no debugging symbols found)...done.
+Loaded symbols for /lib64/libpcre.so.1
+Reading symbols from /lib64/libz.so.1...Reading symbols from /lib64/libz.so.1...(no debugging symbols found)...done.
+(no debugging symbols found)...done.
+Loaded symbols for /lib64/libz.so.1
+Reading symbols from /lib64/libc.so.6...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libc.so.6
+Reading symbols from /lib64/ld-linux-x86-64.so.2...(no debugging symbols found)...done.
+Loaded symbols for /lib64/ld-linux-x86-64.so.2
+Reading symbols from /lib64/libfreebl3.so...Reading symbols from /lib64/libfreebl3.so...(no debugging symbols found)...done.
+(no debugging symbols found)...done.
+Loaded symbols for /lib64/libfreebl3.so
+Reading symbols from /lib64/libnss_files.so.2...(no debugging symbols found)...done.
+Loaded symbols for /lib64/libnss_files.so.2
+Reading symbols from /lib64/libnss_sss.so.2...Reading symbols from /lib64/libnss_sss.so.2...(no debugging symbols found)...done.
+(no debugging symbols found)...done.
+Loaded symbols for /lib64/libnss_sss.so.2
+0x00007f71051040c3 in __epoll_wait_nocancel () from /lib64/libc.so.6
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-325.el7_9.x86_64 nss-softokn-freebl-3.67.0-3.el7_9.x86_64 pcre-8.32-17.el7.x86_64 sssd-client-1.16.5-10.el7_9.10.x86_64 zlib-1.2.7-19.el7_9.x86_64
+(gdb) bt
+#0  0x00007f71051040c3 in __epoll_wait_nocancel () from /lib64/libc.so.6
+#1  0x000000000044e71e in ngx_epoll_process_events (cycle=0x1cdb7a0, timer=18446744073709551615, flags=1)
+    at src/event/modules/ngx_epoll_module.c:800
+#2  0x000000000043f686 in ngx_process_events_and_timers (cycle=0x1cdb7a0) at src/event/ngx_event.c:247
+#3  0x000000000044c580 in ngx_worker_process_cycle (cycle=0x1cdb7a0, data=0x0)
+    at src/os/unix/ngx_process_cycle.c:750
+#4  0x0000000000449465 in ngx_spawn_process (cycle=0x1cdb7a0, proc=0x44c4d2 <ngx_worker_process_cycle>, 
+    data=0x0, name=0x4d0b08 "worker process", respawn=-3) at src/os/unix/ngx_process.c:199
+#5  0x000000000044b783 in ngx_start_worker_processes (cycle=0x1cdb7a0, n=1, type=-3)
+    at src/os/unix/ngx_process_cycle.c:359
+#6  0x000000000044aed3 in ngx_master_process_cycle (cycle=0x1cdb7a0)
+    at src/os/unix/ngx_process_cycle.c:131
+#7  0x000000000040c06b in main (argc=3, argv=0x7fffd992c708) at src/core/nginx.c:382
+(gdb) f 1
+#1  0x000000000044e71e in ngx_epoll_process_events (cycle=0x1cdb7a0, timer=18446744073709551615, flags=1)
+    at src/event/modules/ngx_epoll_module.c:800
+800	    events = epoll_wait(ep, event_list, (int) nevents, timer);
+(gdb) l
+795	    /* NGX_TIMER_INFINITE == INFTIM */
+796	
+797	    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+798	                   "epoll timer: %M", timer);
+799	
+800	    events = epoll_wait(ep, event_list, (int) nevents, timer);
+801	
+802	    err = (events == -1) ? ngx_errno : 0;
+803	
+804	    if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
+(gdb) b 804
+Breakpoint 1 at 0x44e738: file src/event/modules/ngx_epoll_module.c, line 804.
+(gdb) c
+Continuing.
+
+Breakpoint 1, ngx_epoll_process_events (cycle=0x1cdb7a0, timer=18446744073709551615, flags=1)
+    at src/event/modules/ngx_epoll_module.c:804
+804	    if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
+(gdb) c
+Continuing.
+
+Breakpoint 1, ngx_epoll_process_events (cycle=0x1cdb7a0, timer=18446744073709551615, flags=1)
+    at src/event/modules/ngx_epoll_module.c:804
+804	    if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
+(gdb) bt
+#0  ngx_epoll_process_events (cycle=0x1cdb7a0, timer=18446744073709551615, flags=1)
+    at src/event/modules/ngx_epoll_module.c:804
+#1  0x000000000043f686 in ngx_process_events_and_timers (cycle=0x1cdb7a0) at src/event/ngx_event.c:247
+#2  0x000000000044c580 in ngx_worker_process_cycle (cycle=0x1cdb7a0, data=0x0)
+    at src/os/unix/ngx_process_cycle.c:750
+#3  0x0000000000449465 in ngx_spawn_process (cycle=0x1cdb7a0, proc=0x44c4d2 <ngx_worker_process_cycle>, 
+    data=0x0, name=0x4d0b08 "worker process", respawn=-3) at src/os/unix/ngx_process.c:199
+#4  0x000000000044b783 in ngx_start_worker_processes (cycle=0x1cdb7a0, n=1, type=-3)
+    at src/os/unix/ngx_process_cycle.c:359
+#5  0x000000000044aed3 in ngx_master_process_cycle (cycle=0x1cdb7a0)
+    at src/os/unix/ngx_process_cycle.c:131
+#6  0x000000000040c06b in main (argc=3, argv=0x7fffd992c708) at src/core/nginx.c:382
+(gdb) info threads
+  Id   Target Id         Frame 
+* 1    Thread 0x7f71060a7740 (LWP 5440) "nginx" ngx_epoll_process_events (cycle=0x1cdb7a0, 
+    timer=18446744073709551615, flags=1) at src/event/modules/ngx_epoll_module.c:804
+(gdb) c
+Continuing.
+
+Breakpoint 1, ngx_epoll_process_events (cycle=0x1cdb7a0, timer=60000, flags=1)
+    at src/event/modules/ngx_epoll_module.c:804
+804	    if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
+(gdb) c
+Continuing.
+
+访问80端口，触发子进程断点；父进程不处理客户端请求
+当单个子进程的客户端请求达到一定数量，父进程会fork一个新的子进程处理新的客户端请求
+但需要多开很多shell分别attach
+可以设置 set follow-fork mode(child)
+
+Breakpoint 1, ngx_epoll_process_events (cycle=0x1cdb7a0, timer=65000, flags=1)
+    at src/event/modules/ngx_epoll_module.c:804
+804	    if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
+(gdb) 
+
+
