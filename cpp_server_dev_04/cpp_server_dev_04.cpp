@@ -75,6 +75,7 @@ elect、poll、epoll的区别
 fd数据拷贝		每次调用select，需要	每次调用poll，需要		使用内存映射(mmap)，不需要
 				将fd数据从用户空间拷	将fd数据从用户空间		从用户空间频繁拷贝fd数据到内核空间
 				贝到内核空间			拷贝到内核空间
+				（关于select的1024限制 https://blog.csdn.net/dog250/article/details/105896693）
 
 但epoll_wait依旧是阻塞的，产生信号驱动模型
 
@@ -119,7 +120,90 @@ https://mp.weixin.qq.com/s/Xe3LMwsEaoFyFLJPcCCtcg
 
 //
 //bind函数
+// 绑定地址，使用了INADDR_ANY，如果不关心绑定ip，底层协议栈服务会自动选择一个合适ip，相当于0.0.0.0
+// 只想在本地访问，则可以绑定回环地址127.0.0.1，局域网访问可以绑定192.168.x.x等
 // 
+// 绑定端口，一般指定固定端口
+// 客户端的端口一般是连接发起时由操作系统随机分配（0~65535），相当于是默认bind了0作为端口；客户端也可以bind，但经常需要启动多个，绑同一个端口会冲突
+// 服务端如果在bind中设置端口为0，也是随机分配一个监听端口，只不过一般不这么做
+// 
+// 常用命令
+// lsof -i -Pn							查看连接
+// nc -v [-p 12345] 127.0.0.1 3000		类似telnet，模拟客户端连接
+// 
+//
+
+//
+//select函数
+// linux环境下
+//	用于检测一组socket中是否有事件就绪，事件有三种
+//	读事件就绪
+//	 socket内核中，接收缓冲区字节数大于或等于低水位标记SO_RCVLOWAT；此时调用recv或read进行读操作，无阻塞，返回值大于0
+//	 TCP连接的对端关闭；此时进行读操作，返回0
+//	 在监听socket上有新的连接请求
+//	 在socket上有未处理的错误
+//	写事件就绪
+//	 socket内核中，发送缓冲区中可用字节数（空闲位置大小）大于或等于低水位标记SO_SNDLOWAT；可以无阻塞写，返回值大于0
+//	 写操作被关闭（close或shutdown）时，进行写操作会出发SIGPIPE信号
+//   使用非阻塞connect连接成功或失败时
+//	异常事件就绪
+//	 socket收到带外数据（MSG_OOB）
+// 
+// 函数签名
+// int select(int nfds,				//socket在linux下是fd，此参数值要设置为所有使用select检测事件的fd中值最大的一个+1
+//		fd_set* readfds,			//需要监听可读事件的fd集合
+//		fd_set* writefds,			//需要监听可写事件的fd集合
+//		fd_set* exceptfds,			//需要监听异常事件的fd集合
+//		struct timeval* timeout);	//超时事件，在指定时间内检查这些fd事件，若超过，select则返回
+// 
+// fd_set定义
+/*
+
+typedef long int __fd_mask;
+#define __NFDBITS (8 * (int) sizeof (__fd_mask))
+__FD_SETSIZE 之前说过select最大限制为1024
+struct fd_set {
+	//其实就是一个long int数组，数组大小16，每个元素8字节，每字节8bit，所以共存放8*8*16个fd；0表示无，1表示有
+	__fd_mask __fds_bits[__FD_SETSIZE / __NFDBITS];
+}
+
+*/
+// set操作
+/*
+
+将fd放入set
+void FD_SET(int fd, fd_set* set);	//是个宏定义__FD_SET
+具体实现 /usr/include/bits/select.h
+#define __FD_SET(d, set) \
+	((void) (__FDS_BITS (set)[__FD_ELT(d)] |= __FD_MASK(d)))
+
+确认某fd标志位在数组中哪个下标位置
+#define __FD_ELT(d) ((d) / __NFDBITS)
+计算fd在对应bit位上的值，左移余数位
+#define __FD_MASK(d) ((__fd_mask) 1 << ((d) % __NFDBITS))
+最后是 |= 操作，将值设置到对应bit上
+linux下使用的是bitmap位图法
+windows下设置fd_set是从数组第0位置开始递增
+
+在set中删除fd
+void FD_CLR(int fd, fd_set* set);
+
+清除set
+void FD_ZERO(fd_set* set);
+没有使用memset的原因是不想引入其他函数，并且数组长度并不大
+#define __FD_ZERO(set) \
+	do {
+		unsigned int __i;
+		fd_set* __arr = (set);
+		for(__i = 0; __i < sizeof(fd_set) / sizeof(__fd_mask); ++__i)
+			__FDS_BITS (_arr)[__i] = 0;
+	} while(0) //经典do{} while(0)用法
+
+当select函数返回时，使用FD_ISSET宏检查对应bit是否置位
+
+*/
+// 
+// 示例在linux_SC下
 //
 
 int main()
