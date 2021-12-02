@@ -206,6 +206,55 @@ void FD_ZERO(fd_set* set);
 // 示例在linux_SC下
 //
 
+//
+//socket阻塞和非阻塞模式
+// 对于connect、accept、send和recv（send讨论适用于linux中的write，recv讨论使用于read）
+// 几种socket函数在两种模式下会有不同的表现
+// 
+// socket的创建
+//	win和lin中，默认创建的socket都是阻塞模式
+//	在创建时添加flag可设置为非阻塞模式 socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, PROTO);
+//	通过accept接收连接返回的socket是阻塞的
+//	可以使用accept4(listenfd, addr, addrlen, flags);将最后一个参数设置为SOCK_NONBLOCK，直接返回非阻塞socket
+//	创建好的阻塞socket可以通过fcntl或ioctl函数设置为非阻塞模式
+//		int oldf = fcntl(fd, F_GETFL, 0);
+//		int newf = oldf | O_NONBLOCK;
+//		fcntl(fd, F_SETFL, newf);
+// 
+// send/recv函数
+//	send本质并不是向网络发送数据，而是将数据从应用发送缓冲区拷贝到内核缓冲区
+//	具体什么时候从网卡缓冲区发送由TCP/IP协议栈决定
+//	若设置socket选项 TCP_NODELAY （禁用nagel算法），则会立刻将存放到内核缓冲区的数据发出
+//	若不设置，一般表现是，如果数据包很小，会积攒一会，凑成大一些的包才会发出
+//	recv同理，是将内核缓冲区数据拷贝到应用缓冲区，拷贝完成后，内核中该部分会删除
+//	
+//	如果AB建立连接，A不断向B发送数据，B不调用recv，当B内核缓冲区填满，继续send，A内核缓冲区填满，继续send，则
+//		若socket是阻塞模式，继续send，会阻塞在send调用处
+//		当socket是非阻塞模式，继续send，不会阻塞，而是立即出错并返回，得到相关错误码（EWOULDBLOCK或EAGAIN）
+//	内核缓冲区专用名词是TCP窗口，抓包时的win字段
+//	当抓包显示对端TCP窗口为0后，还可以继续发送数据一段时间，则是在填充到本端缓冲区
+// 
+//	建立连接后，服务端没有回复数据给客户端，客户端调用recv无数据可读，则
+//		阻塞模式下，会阻塞在函数调用处
+//		非阻塞模式，立即返回-1，错误码为EWOULDBLOCK
+// 
+//	所以，非阻塞下，要注意send/recv函数的返回值
+//		大于0，表示发送或接收了多少字节，但依旧需要确认，大小是否符合我们的期望值；
+//		有时TCP窗口快满了，只发送/收到了部分数据，则应记录偏移，继续尝试发送
+//		等于0，一般认为对端关闭了连接，同样关闭本端连接即可
+//		小于0，有几种错误码，返回值都是-1，检查errno
+// 				错误码						send				recv
+//				EWOUDBLOCK或EAGAIN		TCP窗口太小			当前缓冲区无可读数据
+// 				EINTR							被信号中断，需要重试
+// 				其他									出错
+// 
+// 阻塞和非阻塞各自场景
+//	非阻塞一般用于需要高并发多QPS场景（服务端）
+//	阻塞场景
+//		发送文件，文件分段，每发送一段，对端响应一次，可以单开线程，在这个线程里阻塞模式每次都是先send后recv（之前写的一个备份程序差不多就是这样）
+//		AB两端只有问答模式，也就是A发送请求一定会有B的响应，同时B端不向A推送数据，则A可以使用阻塞模式
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
