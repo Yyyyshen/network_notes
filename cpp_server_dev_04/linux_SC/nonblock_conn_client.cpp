@@ -72,10 +72,35 @@ test_nonblock_conn_client()
     timeval tv;
     tv.tv_sec = 3;//等待3秒
     tv.tv_usec = 0;
-    if(select(clientfd+1, NULL, &writeset, NULL, &tv) == 1)
-        std::cout << "(select) conn succ" << std::endl;
+    //windows下，一个socket没建立连接之前，使用select检查，结果是不可写
+    //即连接成功后才有信号，select可写，以下流程正常
+    //if(select(clientfd+1, NULL, &writeset, NULL, &tv) == 1)
+    //    std::cout << "(select) conn succ" << std::endl;
+    //else
+    //    std::cout << "(select) conn fail" << std::endl;
+    //但实际在linux下测试，即是没有连接成功，依旧打印了连接成功
+    //是因为linux上，没有建立连接之前，select函数检测也是可写的
+    //正确逻辑是，不仅判断select是否刻写，还要getsockopt判断socket是否出错
+    //通过错误码确认是否连接成功
+    //如下
+    if(select(clientfd +1, NULL, &writeset, NULL, &tv) != 1)
+    {
+        std::cout << "(select) conn err" << std::endl;
+        close(clientfd);
+        return;
+    }
+    
+    int ec;
+    socklen_t ec_len = static_cast<socklen_t>(sizeof(ec));
+    if(::getsockopt(clientfd, SOL_SOCKET, SO_ERROR, &ec, &ec_len) < 0)
+    {
+        close(clientfd);
+        return;
+    }
+    if(ec == 0)
+        std::cout << "(select)&(getsockopt) conn succ" << std::endl;
     else
-        std::cout << "(select) conn fail" << std::endl;
+        std::cout << "(select)&(getsockopt) conn fail" << std::endl;
     
     //资源回收
     close(clientfd);
