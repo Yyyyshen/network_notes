@@ -11,6 +11,35 @@
 #define SERVER_PORT 3000
 #define SEND_DATA "helloworld"
 
+bool
+send_data(int fd, const char* buf, int len)
+{
+	//记录已发送字节数
+	int sent_bytes = 0;
+
+	while (true)
+	{
+		int ret = send(fd, buf + sent_bytes, len - sent_bytes, 0);
+		if (ret == -1)
+		{
+			if (errno == EWOULDBLOCK)
+			{
+				break;//窗口满了，应当缓存没发出去的数据，等待一会尝试再次发送
+			}
+			else if (errno == EINTR)
+				continue;
+			else
+				break;
+		}
+		else if (ret == 0)
+			return false;
+
+		sent_bytes += ret;
+		if (sent_bytes == len)
+			break;//完整发完，结束
+	}
+}
+
 void
 test_client()
 {
