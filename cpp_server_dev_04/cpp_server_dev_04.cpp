@@ -274,6 +274,40 @@ void FD_ZERO(fd_set* set);
 //	调用select，在指定时间内判断该socket是否可写，当可写时，说明连接成功
 //
 
+//
+//连接成功后接收第一组数据
+// 网络通信双方建立连接之后就把对端第一组数据接收（类似http第三次握手成功后就把包带过去？）
+// Linux提供TCP_DEFER_ACCEPT，用setsockopt设置后，只有连接成功并且接收到第一个包时，accept函数才会返回
+// Windows有扩展函数AcceptEx，同样的功效；连接方也可设置当连接时顺便发送第一组数据，ConnectEx
+//
+
+//
+//获取当前socket对应的接收缓冲区中可读数据量
+// 当非监听socket可读时，想获取缓冲区有多少数据可读（类似java.io.InputStream.available）
+// Windows提供了 int ioctlsocket(SOCKET s, long cmd, u_long* argp); 通过传cmd命令为FIONREAD，可从第三个参数获取结果
+// linux使用 int ioctl(int d, int request, ...); 用法基本一致（不同的是，第三个参数必须初始化为0再传递才能得到正确结果）
+// 获取这个数值并不代表可以从recv或read接收之前拿到大小后将值设置为接收缓冲区大小来使用
+// 因为调用ioctl后，recv之前的这段那时间，缓冲区可能又增加了新数据
+// 所以这个很少用
+//
+
+//
+//错误码和信号
+// 在一些socket函数调用出错返回-1时，不能直接判断为失败，而是根据不同的错误码编写对应逻辑
+//	错误码 EINTR 就表示被信号中断了，而不是失败，需要再次重试
+// TCP通信双方AB，当A关闭连接，B继续发送数据，则根据TCP规定，B收到一个A的RST报文应答
+//	继续发送数据，则系统产生SIGPIPE信号给B，告诉它连接已经断开了
+//	系统对这个信号的默认处理是让B退出，但这并不友好
+// TCP通信是全双工，可看为两条单工，两端各负责一条，当对端关闭，虽然含义是关闭两条
+//	但本端值收到FIN，根据TCP规定，表示对端只关闭自己，虽然不再发送，但可以继续接收
+//	也就是说，通信中，无法得知对端socket调用的close还是shutdown（ int shutdown(int socket, int how); how: SHUT_RD,SHUT_WR,SHUT_RDWR）
+//	对一个已经收到FIN包的socket调用read/recv，缓冲区为空则返回0，也就是常说的关闭状态
+//	调用send/write时，如果缓冲区没问题，则可以发送成功，对端返回RST；由于上次的发送正常，程序逻辑可能继续发送，导致产生SIGPIPE进程退出
+// 后端开发中，如果因为某个客户端连接出现这种问题，整个进程结束是不合理的
+//	可以捕获该信号并忽略 signal(SIGPIPE, SIG_IGN);
+//	设置后，同样的逻辑，收到fin的socket调用send/write，返回RST，再次发送，返回-1，错误码是SIGPIPE，就可以在程序中处理
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
