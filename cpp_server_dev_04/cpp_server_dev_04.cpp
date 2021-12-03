@@ -353,6 +353,90 @@ void FD_ZERO(fd_set* set);
 // 例：linux_SC下
 //
 
+//
+//epoll模型
+// select和poll优缺点综合一下，从linux内核2.6以后引入了更高效的epoll模型
+// 
+//基本用法
+// 创建epollfd，使用函数 int epoll_create(int size);
+// size参数在2.6.8之后不再使用，但还是需要设置一个大于0的值
+// 若调用成功，则返回非负值的epollfd，否则为-1
+// 使用epoll_ctl将需要检测事件的其他fd绑定（修改、解绑）epollfd
+// int epoll_ctl(int epfd, int op, int fd, epoll_event* event);
+// 其中
+//	op 操作类型，EPOLL_CTL_ADD、EPOLL_CTL_MOD、EPOLL_CTL_DEL，增改删，删除时event可设置为null
+//	event ，结构体epoll_event指针
+// 函数返回0，则设置成功，失败返回-1，通过errno错误码获取原因
+// 创建并设置好epollfd之后，调用epoll_wait检测事件
+// int epoll_wait(int epfd, epoll_event* events, int maxevents, int timeout);
+// 调用成功，则返回有事件的fd数量；返回0为超时，返回-1为失败
+/*
+
+epoll_wait逻辑
+while (true)
+{
+
+	epoll_event epoll_events[1024];
+	int n = epoll_wait(epollfd, epoll_events, 1024, 1000);
+	if (n < 0)
+	{
+		//信号中断，重试
+		if (errno == EINTR)
+			continue;
+
+		//出错，退出
+		break;
+	}
+
+	if (n == 0)
+		//超时，继续试
+		continue;
+
+	for (size_t i = 0; i < n; ++i)
+	{
+		if (epoll_events[i].events & EPOLLIN)
+			//可读事件
+		else if (epoll_events[i].events & EPOLLOUT)
+			//可写事件
+		else if (epoll_events[i].events & EPOLLERR)
+			//异常事件
+	}
+
+}
+
+*/
+//对比epoll和poll
+// 在epoll_wait成功后，返回事件数量，直接就能操作事件列表（参数events是输出参数）
+// fd数量越多时，epoll效率一般更高，因为内部结构更复杂，如果数量小，不一定比poll快
+// 
+//epoll触发模式
+// 默认为LT（Level Trigger）水平触发模式，一个事件只要有，就会一直触发
+// 还有一个ET（Edge Trigger）边缘触发模式，一个事件从无到有时触发一次
+// （电学术语，可将fd有数据状态看为高电平，没有则为低电平；水平触发为 低电平->高电平或处于高电平；边缘触发条件只有 低->高）
+// 用socket说明
+// 读事件中，水平模式下，只要有未读完数据，一直产生EPOLLIN事件，边缘模式则是只有数据来时触发一次
+// 写事件中，水平模式下tcp窗口只要不饱和就会一直有EPOLLOUT事件，边缘模式则是只有窗口从饱和变为不饱和时触发一次
+// 处理方式，非阻塞socket中
+// 在边缘模式，触发读事件后，一定要把数据接收干净（一直recv到报错EWOULDBLOCK）
+// 水平模式下，可以固定字节数收取
+// 
+//主流网络库的做法，见第7章
+// 
+// 模式总结
+// LT模式读事件触发可以按需读取，不必接收干净；ET模式则需要完全读完，否则可能没机会再读，有机会也需要处理上个包没读完的部分，难度增加且响应变慢
+// LT模式写事件不需要时需要及时移除，否则会一直不必要的触发，浪费CPU；ET模式下如果数据分片发送，每次需要再重新注册一次写事件以继续发送
+// 两种模式各有利弊
+// 
+//EPOLLONESHOT选项
+// 如果某个socket的epoll_event注册了该标志，则其关心的事件，只会触发一次，除非重新注册
+// 在多线程同时处理某socket上事件时，为了避免数据乱序，可以减少同步逻辑的处理
+// 例如，多个线程从一个socket上处理EPOLLIN事件读数据，设置ONESHOT后，一个线程处理完，再次注册，就可以保证同时只有一个线程在处理这次事件触发了
+// 当然，多线程同时操作一个socket并不是很好，实际应当避免
+// 
+//例：linux_SC下
+//
+
+
 int main()
 {
 	std::cout << "Hello World!\n";
