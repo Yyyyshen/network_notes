@@ -436,6 +436,41 @@ while (true)
 //例：linux_SC下
 //
 
+//
+//高效函数 readv/writev
+// 高性能服务器有一个原则：尽量减少系统调用
+// 对一个文件描述符的读或者写，都是系统调用
+// 有时候需要将一个文件或套接字中的数据读到多个缓冲区，或将多个缓冲区数据同时写入一个fd对应文件或套接字
+// 多次调用read或write操作缓冲区，不太方便，linux提供了一系列函数完成这类工作
+// readv(int fd, const struct iovec* iov, int iovcnt);
+// writev(int fd, const struct iovec* iov, int iovcnt);
+// preadv(int fd, const struct iovec* iov, int iovcnt, off_t offset);
+// pwritev(int fd, const struct iovec* iov, int iovcnt, off_t offset);
+// 参数iov是iovec数组，iovcnt是数组个数
+// 调用成功返回读取或写入的总数
+// iovec结构体定义为 数据起始地址和数据长度，表示一段数据
+/*
+
+多条数据写入表格示例
+char* table_head = "name,age";
+char* first = "yshen,26";
+char* second = "ling,26";
+
+iovec iov[3];
+iov[0].iov_base = table_head;
+iov[0].iov_len = strlen(table_head);
+iov[1].iov_base = first;
+iov[1].iov_len = strlen(first);
+iov[2].iov_base = second;
+iov[2].iov_len = strlen(second);
+
+ssize_t ret = writev(file, iov, 3);
+
+*/
+// 很多网络库会使用这样的函数提高执行效率
+//
+
+
 
 int main()
 {
