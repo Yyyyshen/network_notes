@@ -308,6 +308,51 @@ void FD_ZERO(fd_set* set);
 //	设置后，同样的逻辑，收到fin的socket调用send/write，返回RST，再次发送，返回-1，错误码是SIGPIPE，就可以在程序中处理
 //
 
+//
+//poll函数（linux）
+// 用于检测一组fd上的可读可写和出错事件
+// int poll(pollfd* fds,
+//		nfds_t nfds,
+//		int timeout);
+// fds 指向结构体首个元素指针
+// nfds 结构体数组长度 本质是 typedef unsigned long int nfds_t
+// timeout 表示超时事件，单位毫秒
+// struct pollfd {
+//		int fd;				//待检测事件的fd
+//		short events;		//关心的事件组合，由开发者设置，告诉内核关注的事件
+//		short revents;		//检测后得到事件类型，在poll返回时内核设置的，表示发生了的事件
+// };
+// 
+// 事件宏		描述								是否可以作为输入（events）和输出（revents）参数
+// POLLIN		数据可读
+// POLLOUT		数据可写
+// POLLRDNORM	等同POLLIN
+// POLLRDBAND	优先带数据可读						   除了后三个不能作为events，其他的都通用
+// POLLPRI		高优先数据可读（带外数据）
+// POLLWRNORM	等同POLLOUT
+// POLLWRBAND	优先带数据可写
+// POLLRDHUP	对端关闭连接
+// POPPHUP		挂起
+// POLLERR		错误
+// POLLNVAL		文件描述符没打开
+// 
+//对比select
+// poll不要求计算最大描述符的值+1
+// 处理大数量的文件描述符时速度更快
+// 没有最大连接数的限制，因为存储的fd数组没有长度限制
+// 只需要进行一次参数设置即可
+// 
+//缺陷
+// 调用poll，不管有没有意义，大量的fd数组在用户态和内核态之间被整体复制
+// 与select一样，函数返回后，需要遍历集合获取就绪fd
+// 同时连接大量客户端某时刻可能很少处于就绪，效率线性下降
+// 
+//对于非阻塞connect
+// 同样可以使用poll实现，和select同理，在一定时间内检测fd是否可写
+// 
+// 例：linux_SC下
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
