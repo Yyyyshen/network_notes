@@ -496,6 +496,19 @@ ssize_t ret = writev(file, iov, 3);
 // 找一个2字节数0x1234，强转为1字节char，若剩下的时34，则是小端，反之为大端
 //
 
+//
+//域名解析API
+// 如果对端使用域名，需要先把域名解析为ip再进行connect
+// linux中使用gethostbyname
+// 参数为 const char* 传递域名
+// 返回值为一个结构体，存放IP信息
+// 
+// connect_to_server函数支持传入域名
+// 
+// 新Linux中，gethostbyname和gethostbyaddr标记废弃
+// 新函数为getaddrinfo
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
