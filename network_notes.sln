@@ -31,6 +31,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpp_server_dev_07", "cpp_se
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpp_server_dev_08", "cpp_server_dev_08\cpp_server_dev_08.vcxproj", "{999332A8-6532-4129-B62E-4E5D0D9DBD3A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "linux_server_program_01", "linux_server_program_01\linux_server_program_01.vcxproj", "{D829EB87-A9A8-4F52-B2E6-52471C0720B0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -119,6 +121,14 @@ Global
 		{999332A8-6532-4129-B62E-4E5D0D9DBD3A}.Release|x64.Build.0 = Release|x64
 		{999332A8-6532-4129-B62E-4E5D0D9DBD3A}.Release|x86.ActiveCfg = Release|Win32
 		{999332A8-6532-4129-B62E-4E5D0D9DBD3A}.Release|x86.Build.0 = Release|Win32
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Debug|x64.ActiveCfg = Debug|x64
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Debug|x64.Build.0 = Debug|x64
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Debug|x86.ActiveCfg = Debug|Win32
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Debug|x86.Build.0 = Debug|Win32
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Release|x64.ActiveCfg = Release|x64
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Release|x64.Build.0 = Release|x64
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Release|x86.ActiveCfg = Release|Win32
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -133,6 +143,7 @@ Global
 		{8A4E2032-C02A-493A-A423-52472A627014} = {EC32C2ED-1C1C-44DF-97B1-767A269E9EE5}
 		{76A97331-D2B8-4836-9601-CE1DC4DBEBB0} = {EC32C2ED-1C1C-44DF-97B1-767A269E9EE5}
 		{999332A8-6532-4129-B62E-4E5D0D9DBD3A} = {EC32C2ED-1C1C-44DF-97B1-767A269E9EE5}
+		{D829EB87-A9A8-4F52-B2E6-52471C0720B0} = {71440CC3-4F08-44C5-8B05-25D305D866D0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {34FBDDF3-6FF0-4A3C-8D3E-E4447D253AEF}
