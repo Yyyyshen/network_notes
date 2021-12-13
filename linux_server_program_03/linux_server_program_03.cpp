@@ -115,6 +115,12 @@ test_byteorder()
 // 
 //服务器例
 // linux_src/backlog_test.cpp
+// 例中backlog设置了5，测试连接
+// 处于ESTABLISHED状态的连接只有6个（backlog值+1）
+// 其他连接处于SYN_RCVD状态
+// 
+//接受连接
+// int accept(int sockfd, struct sockaddr* addr, socklen_t addrlen);
 // 
 //
 
