@@ -142,6 +142,60 @@ test_byteorder()
 // 其中flags选项一般是0
 // 例
 // linux_src/send_test.cpp
+// 
+// UDP
+// ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t* addrlen);
+// ssize_t sendto(int sockfd, const void* buf, size_t len, int flags, const struct sockaddr* dest_addr, socklen_t addrlen);
+// 不依赖于建立连接的socket读写，指定号发送/接收端即可
+// 另外，两个函数也可以用于面向stream的socket数据读写，只要把发送接收端的socket地址参数传NULL即可，因为双方已经连接了
+// 
+// 通用读写
+// ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags);
+// ssize_t sendmsg(int sockfd, struct msghdr* msg, int flags);
+// 
+//带外标记
+// 实际中，无法预期带外数据何时到来
+// 内核通知应用带外数据到达的方式
+//	I/O复用产生的异常和SIGURG信号
+//	用 int sockatmark(int sockfd); 获取带外数据在数据流的位置
+// 
+//地址信息函数
+// int getsockname(int sockfd, struct sockaddr* address, socklen_t* address_len);
+// int getpeername(int sockfd, struct sockaddr* address, socklen_t* address_len);
+// 用于获取本端和对端的socket地址
+// 
+//socket选项
+// int getsockopt(int sockfd, int level, int option_name, void* option_value, socklen_t* restrict option_len);
+// int setsockopt(int sockfd, int level, int option_name, const void* option_value, socklen_t* option_len);
+// level 指定操作哪个协议的选项		option_name 指定选项名字
+// SOL_SOCKET（通用，协议无关）		SO_REUSEADDR/SO_RCVBUF/SO_SNDBUF/SO_KEEPALIVE/SO_LINGER等
+// IPPROTO_IP						IP_TTL等
+// IPPROTO_IPV6						IPV6_NEXTHOP等
+// IPPROTO_TCP						TCP_NODELAY等
+// 
+// SO_REUSEADDR
+//	连接正常断开后，TCP连接处于TIME_WAIT状态，端口仍在被占用，可以利用这个选项强制使用处于此状态的地址
+//	int reuse = 1;
+//	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+// SO_RCVBUF/SO_SNDBUF
+//	TCP接收、发送缓冲区大小，手动设置缓冲区后，系统会将其值加倍，并且不得小于某值
+// SO_RCVLOWAT/SO_SNDLOWAT
+//	接收和发送缓冲区的低水位标记，被I/O复用机制调用，判断socket是否可读或可写，默认均为1字节
+//	接收缓冲区中大于水位，则可读；发送缓冲区低于水位，则可写
+// SO_LINGER
+//	控制close在关闭TCP连接时的行为，默认下，close立即返回，TCP模块负责把发送缓冲区中残留数据发送给对方
+//	若设置开启并设置滞留时间，则close行为：根据发送缓冲区是否残留数据、是否阻塞判断
+// 
+//网络信息API
+// IP和端口号是socket地址两要素
+// gethostbyname 根据主机名称获取完整信息（先本地hosts再到DNS服务器）
+// gethostbyaddr 根据IP地址获取完整信息
+// 
+// getservbyname/getservbyport 根据名称/端口获取某个服务的完整信息（查询/etc/services文件)
+// 
+// getaddrinfo 通过主机名获取IP（gethostbyname）或服务（getservbyname）信息
+// 
+// getnameinfo 通过socket地址获取字符串表示的主机名（gethostbyaddr）、服务名（getservbyport）
 //
 
 int main()
