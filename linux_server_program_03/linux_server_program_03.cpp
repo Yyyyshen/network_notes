@@ -103,12 +103,12 @@ test_byteorder()
 // 返回值为socket fd，失败返回-1
 // 
 //绑定socket
-// bind(int sockfd,const struct sockaddr* addr,socklen_t addrlen)
+// int bind(int sockfd,const struct sockaddr* addr,socklen_t addrlen);
 // 将创建的socket文件描述符和一个socket地址结构绑定
 // 成功返回0，失败返回-1并设置errno（EACCES，无权限；EADDRINUSE，被占用）
 // 
 //监听socket
-// listen(int sockfd,int backlog)
+// int listen(int sockfd,int backlog);
 // 绑定socket后需要创建监听队列存放待处理客户连接
 // 参数backlog表示内核监听队列的最大长度
 // 如果超过backlog，服务器将不接受新的客户端连接
@@ -121,7 +121,27 @@ test_byteorder()
 // 
 //接受连接
 // int accept(int sockfd, struct sockaddr* addr, socklen_t addrlen);
+// 例
+// linux_src/accept_test.cpp
 // 
+//发起连接
+// int connect(int sockfd,const struct sockaddr* server_addr, socklen_t addrlen);
+// 客户端通过该系统调用发起连接
+// 
+//关闭连接
+// int close(int fd);
+// fd参数是待关闭的socket，close并不总是立即关闭一个连接，而是将fd引用计数-1，只有fd引用计数为0才真正关闭
+// 要立刻关闭（非引用计数-1）可以使用shutdown
+// int shutdown(int sockfd, int howto);
+// 参数howto行为可选SHUT_RD/SHUT_WR/SHUTRDWR
+// 
+//数据读写
+// TCP
+// ssize_t recv(int sockfd, void *buf, size_t len, int flags);
+// ssize_t send(int sockfd, const void *buf, size_t len, int flags);
+// 其中flags选项一般是0
+// 例
+// linux_src/send_test.cpp
 //
 
 int main()
