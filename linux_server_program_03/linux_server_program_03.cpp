@@ -95,6 +95,26 @@ test_byteorder()
 
 //
 //创建socket
+// UNIX/Linux哲学 万物皆文件
+// socket也是一个可读可写，可控制可关闭的文件描述符(fd)
+// 使用socket系统函数可创建
+// int fd = socket(int domain,int type,int protocol);
+// 参数domain表示用哪个协议族，type为服务类型（流和数据报），protocol通常都设置为0
+// 返回值为socket fd，失败返回-1
+// 
+//绑定socket
+// bind(int sockfd,const struct sockaddr* addr,socklen_t addrlen)
+// 将创建的socket文件描述符和一个socket地址结构绑定
+// 成功返回0，失败返回-1并设置errno（EACCES，无权限；EADDRINUSE，被占用）
+// 
+//监听socket
+// listen(int sockfd,int backlog)
+// 绑定socket后需要创建监听队列存放待处理客户连接
+// 参数backlog表示内核监听队列的最大长度
+// 如果超过backlog，服务器将不接受新的客户端连接
+// 
+//服务器例
+// linux_src/backlog_test.cpp
 // 
 //
 
