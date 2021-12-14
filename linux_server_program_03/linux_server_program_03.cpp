@@ -248,6 +248,18 @@ test_byteorder()
 // linux_src/writev_test.cpp
 //
 
+//
+//sendfile
+// 可在两个文件描述符之间直接传递数据（完全在内核中操作，避免了用户和内核缓冲区之间的数据拷贝）
+// ssize_t sendfile(int out_fd, int in_fd, off_t* offset, size_t count);
+// offset指从in_fd文件流的哪个位置开始读，count指定传输的字节数
+// 另外，in_fd必须支持mmap等函数，即必须指向真实文件，不能是socket或者管道；out_fd则必须是socket
+// 所以，基本上就是完全为了网络上传输文件设计的
+// 
+// 例：
+// linux_src/sendfile_test.cpp
+//
+
 int main()
 {
 	test_byteorder();
