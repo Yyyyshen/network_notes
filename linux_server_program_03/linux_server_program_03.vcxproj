@@ -141,6 +141,9 @@
   <ItemGroup>
     <ClCompile Include="linux_server_program_03.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="about_zero.hpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

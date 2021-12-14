@@ -235,6 +235,19 @@ test_byteorder()
 // linux_src/cgi_with_dup.cpp
 //
 
+//
+//readv/writev
+// 将数据集中进行读写，相当于简易版recvmsg/sendmsg
+// ssize_t readv(int fd, const struct iovec* vector, int count);
+// ssize_t writev(int fd, const struct iovec* vector, int count);
+// 在HTTP应答中，应包含一个状态行、多个头字段、一个空行和响应内容
+// 一般来说，前三部分是同一块内存，响应内容在另一块单独内存，要自己拼接到一起再发送
+// 也可以使用writev同时写出
+// 
+// 例：
+// linux_src/writev_test.cpp
+//
+
 int main()
 {
 	test_byteorder();
