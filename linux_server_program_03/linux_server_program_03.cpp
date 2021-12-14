@@ -198,6 +198,43 @@ test_byteorder()
 // getnameinfo 通过socket地址获取字符串表示的主机名（gethostbyaddr）、服务名（getservbyport）
 //
 
+
+//
+//高级I/O函数
+//
+
+//
+//不如基础I/O常用
+// 用于创建fd的函数				pipe、dup/dup2
+// 用于读写的函数				readv/writev、sendfile、mmap/munmap、splice、tee
+// 用于控制I/O行为和属性的函数	fcntl
+//
+
+//
+//pipe
+// 创建管道，实现进程间通信
+// int pipe(int fd[2]);
+// 参数填入两个int型数组，成功时返回0，并将一对打开的文件描述符填入参数指向的数组
+// 通过pipe函数创建的fd[0]和fd[1]分别构成管道的两端，fd[1]只能写，fd[0]只能读
+// 默认下，一对fd是阻塞的，read读取空管道将被阻塞到数据可读
+// 与tcp一样传输的是字节流，但不是窗口控制，是本身有一个容量限制，2.6起管道大小65536
+// 此外，socket的API中有一个socketpair函数，能够创建双向管道
+// int socketpair(int domain, int type, int protocol, int fd[2]);
+//
+
+//
+//dup/dup2
+// 有时希望把标准输入重定向到文件，或者把标准输出重定向到网络连接
+// 可以通过用于复制文件描述符的函数实现
+// int dup(int fd);
+// int dup2(int fd_one, int fd_two);
+// 函数创建一个新的文件描述符，但与原fd指向同一个文件（可能是管道、网络连接）
+// dup返回的描述符总是取系统当前可用最小值，dup2类似，但返回第一个不小于two的整数值
+// 
+// 例：dup函数实现基本CGI服务
+// linux_src/cgi_with_dup.cpp
+//
+
 int main()
 {
 	test_byteorder();
