@@ -283,6 +283,29 @@ test_byteorder()
 // linux_src/echo_use_splice.cpp
 //
 
+//
+//tee
+// 在两个管道文件描述符之间复制数据，也是0拷贝；与splice不同的是，不消耗数据，源文件描述符的数据依然可以用于读操作
+// sszie_t tee(int fd_in, int fd_out, size_t len, unsigned int flags);
+// 除了数据是复制而不是移动，与splice含义相同
+//
+
+//
+//fcntl
+// file control，提供了对文件描述符的各种控制操作
+// 另一个控制文件描述符属性的系统调用是ioctl，比fcntl控制更多，但POSIX规范指定fcntl为控制fd属性和行为的首选
+// int fcntl(inf fd, int cmd, ...);
+// 
+// 例：将一个fd设置为非阻塞模式，网络编程常用
+// int setnonblocking(int fd)
+// {
+//		int old_option = fcntl(fd, F_GETFL);//获取当前状态
+//		int new_option = old_option | O_NONBLOCK;//位操作设置标志位
+//		fcntl(fd, F_SETFL, new_option);//应用新状态
+//		return old_option;//返回旧状态，方便以后恢复
+// }
+//
+
 int main()
 {
 	test_byteorder();
