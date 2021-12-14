@@ -260,6 +260,29 @@ test_byteorder()
 // linux_src/sendfile_test.cpp
 //
 
+//
+//mmap/munmap
+// 用mmap申请一端内存，可将这段内存作为进程通信的共享内存，也可以直接将文件映射其中；用munmap可以释放这段内存
+// void* mmap(void* start, size_t length, int prot, int flags, int fd, off_t offset);
+// int munmap(void *start, size_t length);
+// 参数start参数可以让用户指定某特定地址作为内存的起始地址，传NULL则是系统自动分配
+// length指定内存长度，prot设置内存段访问权限（PROT_READ/PROT_WRITE/PROT_EXEC/PRONT_NONE）
+// flags控制内存段内容被修改后的程序行为
+// fd是被映射文件对应的描述符，offset控制从文件何处开始映射
+// 分配成功则返回指向目标内存的指针，失败返回MAP_FAILED （(void*) -1）
+//
+
+//
+//splice
+// 用于在两个文件描述符中移动数据，也是零拷贝操作（内核操作）
+// ssize_t splice(int fd_in, loff_t* off_in, int fd_out, loff_t* off_out, size_t len, unsigned int flags);
+// fd_in为待输入，如果是一个管道文件，则offset必须为NULL；如果不是，例如是socket，offset表示从何处开始读。输出同理
+// flag控制数据如何移动，len数据长度
+// 
+// 例：零拷贝回显服务
+// linux_src/echo_use_splice.cpp
+//
+
 int main()
 {
 	test_byteorder();
