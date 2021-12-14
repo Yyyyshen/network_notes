@@ -306,6 +306,95 @@ test_byteorder()
 // }
 //
 
+
+//
+//Linux服务器程序规范
+//
+
+//
+//除了网络通信，还需要考虑其他细节
+// Linux服务一般是后台形式运行，又称为daemon，没有控制终端也不会受到用户输入影响，父进程通常是init（pid为1的进程）
+// 通常有一套日志系统，输出日志到文件，高级一些的输出日志到专门的UDP服务器，大部分后台进程都在/var/log目录下有自己的日志目录
+// 一般以某个专门的非root身份运行，mysqld、httpd、syslogd等，分别拥有自己的运行账户mysql、apache、syslog
+// 通常可配置，处理很多命令行选项，配置文件一般存放在/etc目录下，比如squid服务器配置文件在/etc/squid3/squid.conf
+// 通常会在启动时生成一个PID文件存入/var/run目录，记录该后台进程的PID
+// 需要考虑系统资源和限制，预测自身的负荷，比如fd总数、内存量等
+//
+
+//
+//系统日志
+// Linux提供了一个守护进程处理系统日志，syslogd升级版rsyslogd
+// rsyslogd守护进程既能接收用户进程输出日志，又能接收内核日志
+// 用户通过syslog函数生成系统日志，该函数将日志输出到一个UNIX本域socket类型（AF_UNIX）文件/dev/log
+// rsyslogd则监听该文件以获取用户进程输出
+// 调试信息保存在/var/log/debug，普通信息在/var/log/messages，内核消息在/var/log/kern.log
+// 配置文件/etc/rsyslog.conf
+// 
+//syslog
+// 使用此函数与rsyslogd守护进程通信
+// void syslog(int priority, const char* message, ...);
+// 第一个参数是设施只（默认LOG_USER）与日志级别的按位或
+// 下面函数可以该笔那syslog的默认输出方式，进一步结构化日志内容
+// void openlog(const char* ident, int logopt, int facility);
+// 还有日志过滤函数
+// int setlogmask(int maskpri);
+// 最后要关闭日志功能
+// void closelog();
+//
+
+//
+//用户信息
+// 有一组函数可以获取和设置当前进程真实用户ID（UID），还有EUID、GID、EGID
+// get/setuid();等
+// get系列函数可以获取，set系列函数可以切换用户身份
+//
+
+//
+//进程间关系
+// 
+//进程组
+// 每个进程除了有PID信息，还有进程组PGID，可用如下函数获取
+// pid_t getpgid(pid_t pid);
+// 有对应的set函数可让指定进程加入进程组
+// 
+//会话
+// 一些关联的进程组形成一个会话
+// pid_t setsid(void);
+// 非组首领的进程调用该函数，创建新会话，并且称为会话的首领，同时新建一个进程组，自己就是该组首领
+// ps -o pid,ppid,pgid,sid,comm | less
+// ps命令可查看进程、进程组、会话等关系
+//
+
+//
+//系统资源限制
+// 物理设备（CPU、内存），系统策略（CPU时间等），实现限制（文件最大长度）等一系列资源限制可以通过系统函数获取
+// int getrlimit(int resource, struct rlimit* rlim);
+//
+
+//
+//改变工作目录和根目录
+// web服务器逻辑根目录一般是某/www/，并非系统根目录
+// 获取进程当前工作目录和改变工作目录可用如下函数
+// char* getcwd(char* buf, size_t size);
+// int chdir(const char* path);
+// 改变进程根目录使用
+// int chroot(const char* path);
+// 调用chroot之后，只是设置了根目录这个属性，并不真正切换进程当前的工作目录，仍需要使用chdir("/")来切换一次
+//
+
+//
+//服务器程序后台化
+// 守护进程编写遵循一定的步骤
+// 
+// 例：
+// linux_src/daemonize_test.cpp
+// 
+// 实际上，Linux系统提供了该功能的函数
+// int daemon(int nochdir, int noclose);
+// nochdir指定是否改变工作目录，传0则设置为/根目录，否则继续使用当前工作目录
+// noclose传0时，标准输入输出被重定向到/dev/null文件，否则依然使用原来设备
+//
+
 int main()
 {
 	test_byteorder();
