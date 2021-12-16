@@ -185,7 +185,61 @@
 //
 
 //
-//
+//有限状态机
+// 除了服务器中各模块 I/O处理单元、请求队列、逻辑单元 之间的协调
+// 逻辑单元内部可以使用有限状态机，是一种高效编程方法
+// 应用协议层协议头常包含数据包类型字段或命令字段，每种类型可以映射为一种执行状态，根据这些状态处理不同逻辑
+// （其实就是一个分类逻辑处理，没想到还有个专有名称）
+// 
+// 状态独立的有限状态机
+/*
+state_machine(Package pack)
+{
+	Type type = pack.getType();
+	switch(type)
+	{
+		case type_A:
+			process_A(pack);
+			break;
+		case type_b:
+			process_B(pack);
+			break;
+	}
+}
+ */
+// 简单的状态机，每个状态相互独立，没有相互转换
+// 
+// 带状态转移的有限状态机
+/*
+state_machine()
+{
+	State cur = type_A;
+	while(cur != type_C)
+	{
+		switch(cur)
+		{
+			case type_A:
+				process_A(pack);
+				cur = type_B;
+				break;
+			case type_B:
+				process_B(pack);
+				cur = type_C
+				break;
+		}
+	}
+}
+*/
+// 每次在当前状态处理数据之后，转化状态（supershield SDK就用了这个）
+// 
+// HTTP协议分析
+// 判断协议头结束依据是一个空行，仅包含一对回车换行符（前一行头的回车换行和空行的回车换行）
+// 若一次读操作没有读入HTTP整个头部，即没有遇到空行，必须等待，再次读入
+// 每次读操作后，就要分析数据中是否符合协议
+// 同时，可以在寻找空行的过程中，完成对之前头字段的分析，提高解析效率
+// 
+// 例：使用主从两个有限状态机实现HTTP请求的读取和分析
+// linux_src/http_parse.cpp
 //
 
 int main()
