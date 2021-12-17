@@ -272,7 +272,54 @@ state_machine()
 //
 
 //
+//使用场景
+// I/O复用使得程序能同时监听多个fd，提高程序性能
+// 客户端需要同时处理多个connect时
+// 客户端程序同时处理用户输入和网络连接（聊天室）
+// 服务器需要同时处理监听socket和连接socket（最常见）
+// 同时处理TCP和UDP时，例如echo服务器
+// 同时监听多个端口或处理多种服务时
+// 
+// 系统调用
+// select、poll和epoll
 //
+
+//
+//select
+// 在指定时间内，监听用户感兴趣的fd上的I/O事件
+// 
+// int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* exceptfds, struct timeval* timeout);
+// 参数nfds指定被监听的fd总数，通常设置为监听的所有文件描述符值中的最大值+1
+// 三个fd_set分别是可读、可写、异常事件对应的文件描述符集合，当select调用返回时，内核将修改它们并通知应用程序有文件描述符就绪
+// 
+// fd_set结构体仅包含一个整型数组，每一位标记一个文件描述符，数量由FD_SETSIZE指定，所以select有处理上限
+// 位操作比较麻烦，系统提供一系列宏处理
+// FD_ZERO(fd_set * fdset);//清除set中的所有位
+// FD_SET(int fd, fd_set* fdset);//设置位fd
+// FD_CLR(int fd, fd_set* fdset);//清除位fd
+// int FD_ISSET(int fd, fd_set* fdset);//测试fdset的位是否被设置
+// 
+// timeout设置超时时间，提供了秒和微秒级的定时方式
+// 
+// select成功时返回就绪fd的总数；超时返回0；失败返回-1，并设置errno，如收到信号，立即返回-1设置errno为EINTR
+// 
+//文件描述符就绪条件
+// 可读情况
+//	内核接收缓冲区大于等于低水位标记SO_RCVLOWAT，此时可无阻塞读socket
+//	通信对方关闭，进行读操作返回0
+//	监听socket上有新的连接
+//	有未处理错误，可以使用getsockopt读取和清除错误
+// 可写情况
+//	内核发送缓冲区可用字节大于等于低水位标记SO_SNDLOWAT，此时可无阻塞写
+//	写操作被关闭，对写操作被关闭的socket执行写操作（收到RST后向对端发数据）触发SIGPIPE信号
+//	非阻塞connect连接成功后
+//	有未处理错误，getsockopt
+// 
+//处理带外数据
+// socket收到普通和带外数据都会使select返回，但socket处于不同状态
+// 前者可读，后者则是异常
+// 例：select同时处理两种数据
+// linux_src/select_test.cpp
 //
 
 int main()
