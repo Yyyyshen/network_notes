@@ -338,6 +338,53 @@ state_machine()
 // timeout与select含义相同
 //
 
+//
+//epoll
+// 
+//以一个内核事件表为驱动
+// epoll使用一组函数完成任务而不是单个函数
+// 把用户关心的fd的事件放在内核的一个事件表中，无须每次重复设置
+// 但epoll需要使用一个额外的fd来位移标识内核中这个事件表
+// 
+// 创建这个事件表需要如下函数
+// int epoll_create(int size);
+// size参数不会起作用，一般传一个大于0的数即可
+// 返回的fd用作其他epoll系列函数的第一个参数，以指定要访问的内核事件表
+// 
+// 操作这个事件表的函数
+// int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
+// op参数指定操作类型，有EPOLL_CTL_ADD/MOD/DEL，也就是添加、修改和删除
+// event参数指定事件，支持的事件类型和poll支持的差不多，宏名前面加'E'
+// struct epoll_event
+// {
+//		__uint32_t events;	//epoll事件
+//		epoll_data_t data;	//绑定的数据
+// }
+// typedef union epoll_data
+// {
+//		void* ptr;
+//		int fd;				//最常用的是绑定对应的文件描述符
+//		uint32_t u32;
+//		uint64_t u64;
+// } epoll_data_t
+// 
+// 主要监听函数
+// int epoll_wait(int epfd, struct epoll_event* events, int maxevents, int timeout);
+// 在一段超时时间等待一组文件描述符上的事件，成功则返回就绪的fd个数，失败返回-1并设置errno
+// 如果检测到事件，就会将所有就绪的事件从内核事件表复制到它的第二个参数events指向的数组中
+// 数组只用于输出就绪事件，感兴趣的事件绑定依赖于epfd
+// 不像select和poll数组参数那样既用于传入用户注册事件又用于输出就绪事件
+// 提高了程序索引就绪fd的效率
+// 
+//模式 LT 和 ET
+// epoll对fd的操作模式有两种
+//	LT 默认的工作模式，相当于一个较高效率的poll；检测到有事件发生时，通知应用，应用可以不处理，下次调用还会再次通知此事件，直到处理
+//	ET 是epoll的高效工作模式；此模式下，事件发生并通知后，如果应用不处理，下次调用wait则不会再通知，降低了触发次数，效率相对较高
+// 例：两种模式的区别
+// linux_src/epoll_lt_and_et.cpp
+// 
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
