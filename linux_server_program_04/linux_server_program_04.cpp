@@ -322,6 +322,22 @@ state_machine()
 // linux_src/select_test.cpp
 //
 
+//
+//poll
+// 与select类似，在指定时间内轮询一定数量的fd，测试其中是否有就绪者
+// 
+// int poll(struct pollfd* fds, nfds_t nfds, int timeout);
+// fds参数是一个pollfd结构类型的数组，指定所有我们感兴趣的fd发生的I/O事件
+// struct pollfd
+// {
+//		int fd;
+//		short events;//注册的事件
+//		short revents;//实际发生的事件，内核填充
+// }
+// nfds参数指定fds集合大小
+// timeout与select含义相同
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
