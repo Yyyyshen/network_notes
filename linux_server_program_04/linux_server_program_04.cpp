@@ -383,6 +383,13 @@ state_machine()
 // 例：两种模式的区别
 // linux_src/epoll_lt_and_et.cpp
 // 
+//EPOLLONESHOT事件
+// 不管ET还是LT，某事件还是可能多次触发的
+// 并发环境下，如果多个线程操作一个socket上数据，同步问题就会很麻烦
+// 可以使用EPOLLONESHOT事件，实现任意时刻只有一个线程能够处理这个socket
+// 当这个线程处理完这次socket事件，则再次对其设置EPOLLONESHOT，以便继续触发被其他线程处理
+// 例：EPOLLONESHOT使用
+// linux_src/epoll_oneshot_test.cpp
 //
 
 int main()
