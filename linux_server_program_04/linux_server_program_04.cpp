@@ -434,6 +434,17 @@ state_machine()
 // linux_src/chat_use_poll_server.cpp
 //
 
+//
+//回显服务
+// 实际应用中，很多服务器程序都同时监听多个端口，如超级服务inetd和android的adbd
+// bind系统调用中，一个socket只能与一个地址绑定，想监听多个，就要创建多个socket，分别绑定
+// 则需要I/O复用机制
+// 同一个端口上同时处理TCP和UDP，也需要创建两个类型socket（流和数据报）
+// 
+// 例：epoll同时处理TCP和UDP的回显服务
+// linux_src/echo_server_epoll_tcp_and_udp.cpp
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
