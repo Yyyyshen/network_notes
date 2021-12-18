@@ -405,6 +405,22 @@ state_machine()
 // 内核通过一个事件表接管用户注册的事件，无须每次重复传入，输入输出的事件集合分开，索引O(1)，无支持数限制，支持ET高效模式，内核通过回调检测就绪事件，O(1)
 //
 
+
+//
+//I/O复用应用
+//
+
+//
+//非阻塞connect
+// 对非阻塞socket调用connect时，如果连接没有立即建立，connect出错有一种errno值，EINPROGRESS
+// 表示正在尝试连接，这种情况可以使用I/O复用函数，监听socket上的可写事件，再利用getsockopt读取错误码并清除错误
+// 如果错误码为0，则表示成功建立连接
+// 
+// 通过非阻塞connect方式，可以同时发起多个连接
+// 例：
+// linux_src/nonblocking_connect.cpp
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
