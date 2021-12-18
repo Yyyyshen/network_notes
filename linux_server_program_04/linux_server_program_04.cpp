@@ -421,6 +421,19 @@ state_machine()
 // linux_src/nonblocking_connect.cpp
 //
 
+//
+//聊天室
+// 使用poll实现
+// 
+// 客户端：
+// poll监听用户输入和网络连接，并使用splice将用户输入直接定向到网络连接并发送，实现数据零拷贝
+// linux_src/chat_use_poll_client.cpp
+// 
+// 服务端：
+// poll管理监听socket和连接socket，并利用牺牲空间换时间的策略提高性能
+// linux_src/chat_use_poll_server.cpp
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
