@@ -106,6 +106,30 @@
 // linux_src/events_processing.cpp
 //
 
+//
+//网络编程相关信号
+// 
+//SIGHUP
+// 当挂起进程的控制终端，SIGHUP信号触发
+// 对于没有控制终端的网络后台程序，通常利用此信号强制服务器重读配置文件
+// 如xinetd超级服务
+//  接收到SIGHUP后，调用hard_reconfig
+//  循环读取/etc/xinetd.d/目录下每个子配置文件，检查变化
+//  某个正在运行的自服务配置文件被修改停止服务，则xinetd给子服务进程发送SIGTERM
+//  若被修改开启服务，则创建新的socket将其绑定到子服务对应端口
+// 
+//SIGPIPE
+// 向一个读端关闭的管道或socket连接中写数据将引发SIGPIPE信号
+// 此信号的默认处理方式是关闭进程，对于服务器进程，应捕获并处理它，至少要忽略它
+// 引起SIGPIPE信号的写操作将设置errno为EPIPE
+// 可以利用I/O复用检测管道和socket读端是否已经关闭（socket对端关闭时，POLLRDHUP事件将触发）
+// 
+//SIGURG
+// 内核通知应用带外数据到达的方式有
+//  I/O复用，之前已经有例子了
+//  另一种就是使用SIGURG信号
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
