@@ -130,6 +130,29 @@
 //  另一种就是使用SIGURG信号
 //
 
+
+
+//
+//定时器
+//
+
+//
+//网络程序中另一个常用的事件是定时事件
+// 比如定期检测客户连接的活动状态
+// 服务器通常管理着众多定时事件，有效组织事件，按预期触发而不影响服务器主要逻辑很重要
+// 可以将每个定时事件封装为定时器，并使用某种容器类数据结构串联起来
+//
+
+//
+//socket选项SO_RCVTIMEO和SO_SNDTIMEO
+// 用来设置接收和发送数据的超时时间，对socket相关api有效
+// 可以根据系统调用返回值和errno（EAGAIN/EWOULDBLOCK、EINPROGRESS）判断超时时间是否已到
+// 进而决定是否开始处理定时任务
+// 
+// 例：以connect为例，使用SO_SNDTIMEO选项定时
+// linux_src/timeout_connect.cpp
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
