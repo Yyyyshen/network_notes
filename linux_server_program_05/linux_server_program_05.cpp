@@ -153,6 +153,30 @@
 // linux_src/timeout_connect.cpp
 //
 
+//
+//I/O复用系统调用的超时参数
+// select的timeval
+// poll的timespec
+// epoll_wait的timeout参数
+//
+
+//
+//SIGALRM
+// 由alarm和setitimer函数设置实施闹钟，超时时触发SIGALRM信号
+// 可以利用该信号的处理函数处理定时任务
+// 但如果要处理多个，就需要不断触发信号
+// 
+//实例：处理非活动连接
+// 涉及到基于升序链表的定时器实现，并应用到例子中
+// 
+// linux_src/timer_based_on_linkedlist.hpp
+// linux_src/nonactive_conns_clean.cpp
+//
+
+//
+//
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
