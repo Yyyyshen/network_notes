@@ -445,6 +445,10 @@ state_machine()
 // linux_src/echo_server_epoll_tcp_and_udp.cpp
 //
 
+//
+//超级服务xinetd
+//
+
 int main()
 {
 	std::cout << "Hello World!\n";
