@@ -12,7 +12,7 @@ struct client_data
 {
     int sockfd;
     tw_timer* timer;
-}
+};
 
 //定时器类
 class tw_timer
