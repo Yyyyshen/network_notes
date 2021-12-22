@@ -161,6 +161,53 @@
 // linux_src/chat_server_multi_progress_use_shm.cpp
 //
 
+//
+//消息队列
+// 两个进程间可用消息队列传递二进制数据块
+// 每个数据块都有特定类型，接收方可以根据类型选择性接收，而不一定像管道一样必须FIFO方式接收
+// 
+//msgget
+// 创建一个消息队列（或获取）
+// int msgget(key_t key, int msgflg);
+// 创建消息队列后，内核数据结构msqid_ds将被初始化
+// 
+//msgsnd
+// 把一条消息添加到消息队列
+// int msgsnd(int msqid, const void* msg_ptr, size_t msg_sz, int msgflg);
+// msg_ptr指向准备发送的消息，消息必须定义为struct msgbuf，可指定消息类型和数据块指针
+// msg_sz为消息数据部分长度
+// msgflg控制msgsnd行为，通常仅支持IPC_NOWAIT标志，即非阻塞
+// 
+//msgrcv
+// 从消息队列中获取消息
+// int msgrcv(int msqid, void* msg_ptr, size_t msg_sz, long int msgtype, int msgflg);
+// msgtype可指定接收何种类型消息
+// 
+//msgctl
+// 控制消息队列的某些属性
+// int msgctl(int msqid, int command, struct msqid_ds* buf);
+//
+
+//
+//IPC命令
+// 上面几种进程间通信方式都有一个全局唯一键值key来描述一个共享资源
+// 当进程调用semget、shmget、msgget，就创建了这些共享资源实例
+// ipcs命令可以观察当前系统上有哪些共享资源实例
+//
+
+//
+//进程间传递文件描述符
+// fork调用后，父进程打开的文件描述符在子进程仍然保持打开
+// 所以文件描述符可以很方便从父进程到子进程
+// 注意，传递文件描述符不是传递其值，而是在接收进程创建一个新的文件描述符，并且该文件描述符和被传递fd指向内核中相同的文件表项
+// 
+// 那么如何把子进程打开的fd传给父进程，或者说，在不相关进程间传递fd
+// Linux下，可以利用UNIX域socket在进程间传递特殊的辅助数据，实现fd的传递
+// 
+// 例：子进程打开一个fd，并传给父进程，父进程读取fd获取内容
+// linux_src/transfer_fd_test.cpp
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
