@@ -117,6 +117,50 @@
 // linux_src/ipc_private_sig_test.cpp
 //
 
+//
+//共享内存
+// 是进程通信的最高效机制，不涉及进程间的数据传输
+// 但需要用辅助手段同步对共享内存的访问
+// 通常和其他IPC方式一起使用
+// 
+//shmget
+// 创建一段新的共享内存，或获取一段已经存在的共享内存
+// int shmget(key_t key, size_t size, int shmflg);
+// 参数和semget含义基本相同
+// 调用成功返回一个正整数作为标识符
+// 这段共享内存所有字节初始化为0，内核数据结构shmid_ds将被创建并初始化
+// 
+//shmat、shmdt
+// 共享内存创建/获取后，不能立即访问，要关联到进程的地址空间中
+// 使用完，需要从中分离，分别用两个函数实现
+// void* shmat(int shm_id, const void* shm_addr, int shmflg);
+// 参数shm_addr指定关联到进程的哪块地址空间，调用成功返回共享内存被关联的地址
+// int shmdt(const void* shm_addr);
+// 分离，成功返回0
+// 
+//shmctl
+// 控制共享内存的某些属性
+// int shmctl(int shm_id, int command, struct shmid_ds* buf);
+// 
+//共享内存的POSIX方法
+// 利用MAP_ANONYMOUS标志的mmap函数可以实现父子进程的匿名内存共享
+// 通过打开一个文件，可以实现无关进程之间的内存共享
+// Linux提供了另一种利用mmap在无关进程间共享内存的方式，这种方式无须任何文件支持，需要先创建或打开一个POSIX共享内存对象
+// int shm_open(const char* name, int oflag, mode_t mode);
+// 与open使用相同，name指定要打开/创建的共享内存对象，为了移植性，通常用“/somename”形式
+// oflag指定创建方式（读、写、创建等）
+// 调用成功时，返回一个文件描述符，可用于后续mmap的调用，从而使共享内存关联到调用进程
+// 使用后，需要关闭
+// int shm_unlink(const char* name);
+// 编译时需要指定链接选项 -lrt
+// 
+//共享内存实例
+// 将之前的聊天室程序改为多进程，每个子进程处理一个客户连接
+// 同时，为所有客户的socket连接读缓冲设计为一块共享内存
+// 
+// linux_src/chat_server_multi_progress_use_shm.cpp
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
