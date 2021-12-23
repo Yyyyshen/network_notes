@@ -323,6 +323,47 @@
 // linux_src/locker.hpp
 //
 
+//
+//多线程环境
+//
+//可重入函数
+// 如果一个函数能被多个线程同时调用且不发生竞态条件，则称它线程安全（或可重入）
+// 一些Linux不可重入函数如inet_ntoa等，其内部使用了静态变量，大多数都提供了对应的可重入版本
+// 可重入版本（线程安全版本）原函数名加_r，如localtime对应localtime_r
+// 多线程程序中，要使用可重入版本的函数
+// 
+//线程和进程
+// 多线程程序中某个线程调用了fork，子进程不会自动创建父进程相同数量的线程，而是只拥有一个执行线程即调用fork的那个
+// 而这当中，会有一个问题
+// 子进程会自动继承父进程中的互斥锁及其状态
+// 父进程中被加锁的互斥锁在子进程中也是锁住的，而子进程可能不知道继承来的锁状态，这个锁可能是锁住的，但是不是由调用fork那个线程锁住的
+// 此时子进程再次加锁就会死锁
+// 
+// 一个专门函数pthread_atfork，确保fork调用后父进程和子进程都拥有一个清楚的锁状态
+// int pthread_atfor(void (*prepare)(void), void (*parent)(void), void (*child)(void);
+// 三个fork句柄，prepare在fork调用创建出子进程之前执行，可用来锁住父进程的锁
+// parent在fork调用创建出子进程之后，fork返回之前，父进程中执行
+// child在fork返回之前，在子进程中执行
+// 确保在子进程中使用锁前，锁是释放状态
+// 
+//线程和信号
+// 每个线程可以独立设置信号掩码
+// pthread_sigmask(int how, const sigset_t* newmask, sigset_t* oldmask);
+// 进程中所有线程共享进程的信号，所以线程库根据线程掩码决定把信号发给哪个线程，如果每个线程都单独设置信号掩码，容易逻辑错误
+// 另外，处理函数也是共享的，一个线程中设置某个信号的处理函数后，会覆盖其他线程对这个信号设置的处理函数
+// 所以应该在一个专门的线程处理所有信号
+// 步骤：
+// 主线程创建子线程之前就调用pthread_sigmask设置好掩码，所有子线程都自动继承
+// 在某个专门线程调用 sigwait 等待信号并处理
+// int sigwait(const sigset_t* set, int* sig);
+// 
+// 例：用一个线程处理所有信号
+// linux_src/handle_sig_in_one_pthread.cpp
+// 
+// 与进程间发送信号使用kill类似，线程间也可以
+// int pthread_kill(pthread_t thread, int sig);
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
