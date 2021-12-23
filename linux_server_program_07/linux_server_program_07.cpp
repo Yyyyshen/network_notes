@@ -73,6 +73,70 @@
 // linux_src/pressure_test_use_epoll.cpp
 //
 
+
+//
+//系统监测工具
+//
+
+//
+//tcpdump
+// 抓包
+//
+
+//
+//lsof
+// 列出系统打开文件描述符的工具
+// 
+// 例如查看ssh服务
+// lsof -i@192.168.1.108:22
+// 指定程序
+// lsof -c server
+//
+
+//
+//nc
+// 快速构建网络服务
+// -l 监听服务
+//
+
+//
+//strace
+// 跟踪程序运行中的系统调用和接收的信号
+// -c 统计系统调用事件
+// -f 跟踪fork调用生成的子进程
+// -t 输出每一行前加上时间
+// -e 指定一个表达式
+//  -e trace=network 表示只跟踪网络相关系统调用
+//  -e signal=!SIGINT 跟踪除SIGINT以外的信号
+// -o 输出到文件
+// -p 跟踪指定进程
+//
+
+//
+//netstat
+// 统计网络信息
+// 
+// netstat -na
+//
+
+//
+//vmstat
+// 实时输出系统各资源使用情况
+// 
+// 每隔疫苗输出一次
+// vmstat 1
+//
+
+//
+//ifstat
+// 网络流量检测
+//
+
+//
+//mpstat
+// 检测每个CPU使用情况
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
