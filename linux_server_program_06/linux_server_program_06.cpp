@@ -208,6 +208,121 @@
 // linux_src/transfer_fd_test.cpp
 //
 
+
+
+//
+//多线程
+//
+
+//
+//Linux线程概述
+// 
+//线程模型
+// 线程是应用程序内独立完成任务的执行序列，根据应用程序内用户空间和内核空间，也有内核线程和用户线程
+// 线程实现的几种模式
+// 完全在用户空间 
+//  无须内核支持，内核仍然把整个进程作为最小单位调度
+//  一个进程所有执行线程共享该进程的时间片，对外表现同样的优先级
+//  此时，多个用户线程对应一个内核线程（也就是进程本身）
+//  速度较快，不占用额外内核资源；但多处理器系统上，一个进程中多个线程无法运行在不同CPU
+// 完全由内核调度
+//  用户空间线程无须执行管理任务，优缺点与完全在用户空间模式相反
+// 双层调度模式
+//  前两种结合，不会消耗过多内核资源，切换速度也很快，能利用多处理器
+// 
+
+// 
+//线程库
+// getconf GNU_LIBPTHREAD_VERSION
+// Linux上默认使用NPTL
+// 
+//线程创建和结束
+// 创建
+// int pthread_create(pthread_t* thread, const pthread_attr_t* attr, void*(*start_routine)(void*), void* arg);
+// 参数thread是新线程的标识符，其他线程操作函数通过它引用新线程，类型是一个 unsigned long int
+// attr用于设置属性，传递NULL表示用默认属性
+// 后两个参数用于指定运行的函数和参数
+// 
+// 退出
+// void pthread_exit(void* retaval);
+// 线程函数结束时最好调用此函数，确保安全、干净的退出
+// 
+// 回收
+// 一个进程中所有线程都可以调用pthread_join函数回收其他线程（前提是joinable）
+// 即等待其他线程结束（类似于回收进程的wait/waitpid）
+// int pthread_join(pthread_t thread, void** retval);
+// 该函数会阻塞直到被回收的线程结束
+// 
+// 取消
+// int pthread_cancel(pthread_t thread);
+// 接收到取消请求的目标线程可以决定是否允许被取消以及如何取消
+// int pthread_setcancelstate(int state, int* oldstate);
+// int pthread_setcanceltype(int type, int* oldtype);
+//
+
+//
+//线程属性
+// pthread_attr_t结构体定义了一套完整线程属性
+// #define __SIZEOF_PTHREAD_ATTR_T 36
+// typedef union
+// {
+//      char __size[__SIZEOF_PTHREAD_ATTR_T];
+//      long int __align;
+// } pthread_attr_t;
+// 线程库定义一系列函数操作该类型变量
+// 可设置
+// 线程脱离与被回收
+// 堆栈起始地址和大小
+// 保护区域大小（堆栈尾部分配额外空间，保护堆栈不被错误的覆盖）
+// 调度参数 线程运行优先级
+// 调度策略
+// 优先级有效范围
+//
+
+//
+//POSIX信号量
+// 与多进程一样，多线程也需要考虑同步问题
+// 与IPC信号量语义几乎完全相同，只是API不完全相同
+// int sem_init(sem_t* sem, int pshared, unsigned int value); //pshared参数指定是局部信号量还是多进程共享信号量
+// int sem_destroy(sem_t* sem);
+// int sem_wait(sem_t* sem);
+// int sem_trywait(sem_t* sem);
+// int sem_post(sem_t* sem);
+// 其中
+// wait函数以原子操作将信号值-1，如果信号量为0，则阻塞，直到信号量非0（进临界区前）
+// post函数以原子操作方式将信号量+1，信号值大于0则其他调用wait的线程将唤醒（出临界区前）
+//
+
+//
+//互斥锁
+// 可用于保护关键代码段，确保独占式访问（像一个二进制信号量）
+// 进入关键代码段，需要获得互斥量并加锁，等价于信号量P操作
+// 离开关键代码段，需要解锁互斥量，以唤醒其他等待此锁的线程，等价于信号量的V操作
+// 
+//基础API
+// int pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* mutexattr);
+// int pthread_mutex_destroy(pthread_mutex_t* mutex);
+// int pthread_mutex_lock(pthread_mutex_t* mutex);
+// int pthread_mutex_trylock(pthread_mutex_t* mutex);
+// int pthread_mutex_unlock((pthread_mutex_t* mutex);
+// 
+//属性
+// pshared 指定是否允许跨进程共享互斥锁
+// type 指定类型（普通所、检错锁、嵌套锁、默认锁）
+//
+
+//
+//条件变量
+// 提供一种线程间通知的机制：当某个共享数据达到某个值，唤醒等待这个共享数据的线程
+//
+
+//
+//实例：线程同步机制包装类
+// 将多种同步机制分别封装
+// 
+// linux_src/locker.hpp
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
