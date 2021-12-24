@@ -421,6 +421,13 @@
 // linux_src/thread_pool.hpp
 //
 
+//
+//利用上面线程池例子实现Web服务器
+// 
+// linux_src/http_conn.hpp
+// linux_src/web_server_use_thread_pool.cpp
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
