@@ -405,6 +405,12 @@
 // linux_src/process_pool.hpp
 //
 
+//
+//使用上面进程池例子实现并发CGI服务器
+// 
+// linux_src/cgi_use_process_pool.cpp
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
