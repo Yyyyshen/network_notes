@@ -411,6 +411,16 @@
 // linux_src/cgi_use_process_pool.cpp
 //
 
+//
+//半同步/半反应堆线程池
+// 实现
+// 使用一个工作队列解除了主线程和工作线程的耦合
+// 主线程向工作队列插入任务，工作线程竞争获取任务并执行
+// 但需要客户请求都是无状态的，同一个连接上的不同请求可能由不同线程处理
+// 
+// linux_src/thread_pool.hpp
+//
+
 int main()
 {
     std::cout << "Hello World!\n";
