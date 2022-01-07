@@ -45,6 +45,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "linux_server_program_06", "
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "linux_server_program_07", "linux_server_program_07\linux_server_program_07.vcxproj", "{9B9217AB-16C4-4267-8D3C-BACC8EF62784}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "linux_multi_thread_server_01", "linux_multi_thread_server_01\linux_multi_thread_server_01.vcxproj", "{C7BA1794-316B-4457-B54D-330EC58FA41B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -189,6 +191,14 @@ Global
 		{9B9217AB-16C4-4267-8D3C-BACC8EF62784}.Release|x64.Build.0 = Release|x64
 		{9B9217AB-16C4-4267-8D3C-BACC8EF62784}.Release|x86.ActiveCfg = Release|Win32
 		{9B9217AB-16C4-4267-8D3C-BACC8EF62784}.Release|x86.Build.0 = Release|Win32
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Debug|x64.ActiveCfg = Debug|x64
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Debug|x64.Build.0 = Debug|x64
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Debug|x86.ActiveCfg = Debug|Win32
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Debug|x86.Build.0 = Debug|Win32
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Release|x64.ActiveCfg = Release|x64
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Release|x64.Build.0 = Release|x64
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Release|x86.ActiveCfg = Release|Win32
+		{C7BA1794-316B-4457-B54D-330EC58FA41B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -210,6 +220,7 @@ Global
 		{C08DCC52-1F89-46C0-9023-0E8FDB96F11D} = {71440CC3-4F08-44C5-8B05-25D305D866D0}
 		{93BF6A91-F1D3-4D36-A7F7-37E0471C5FC7} = {71440CC3-4F08-44C5-8B05-25D305D866D0}
 		{9B9217AB-16C4-4267-8D3C-BACC8EF62784} = {71440CC3-4F08-44C5-8B05-25D305D866D0}
+		{C7BA1794-316B-4457-B54D-330EC58FA41B} = {B9808A2B-F09F-4168-810C-4B6A6D14F97C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {34FBDDF3-6FF0-4A3C-8D3E-E4447D253AEF}
